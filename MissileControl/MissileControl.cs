@@ -27,7 +27,8 @@ namespace IngameScript
             private List<Gyro> _gyros = new List<Gyro>();
             private IMyShipConnector _connector;
             private List<IMyWarhead> _payload = new List<IMyWarhead>();
-            private Dictionary<Direction, ThrusterGroup> _thrusterGroups = new Dictionary<Direction, ThrusterGroup>();
+            private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>();
+            private Dictionary<Direction, float> _maxThrust = new Dictionary<Direction, float>();
             private IMyRadioAntenna _antenna;
             private List<GasTank> _h2Tanks = new List<GasTank>();
             private List<Battery> _batteries = new List<Battery>();
@@ -75,14 +76,14 @@ namespace IngameScript
 
             private void GetBlocks()
             {
-                _thrusterGroups[Direction.Up] = new ThrusterGroup(Direction.Up, AllGridBlocks.Where(b => b is IMyThrust && b.CustomData.ToUpper().Contains("-UP")).Select(b => new Thruster(b as IMyThrust, Direction.Up)).ToArray());
-                _thrusterGroups[Direction.Down] = new ThrusterGroup(Direction.Down, AllGridBlocks.Where(b => b is IMyThrust && b.CustomData.ToUpper().Contains("-DOWN")).Select(b => new Thruster(b as IMyThrust, Direction.Down)).ToArray());
-                _thrusterGroups[Direction.Left] = new ThrusterGroup(Direction.Left, AllGridBlocks.Where(b => b is IMyThrust && b.CustomData.ToUpper().Contains("-LEFT")).Select(b => new Thruster(b as IMyThrust, Direction.Left)).ToArray());
-                _thrusterGroups[Direction.Right] = new ThrusterGroup(Direction.Right, AllGridBlocks.Where(b => b is IMyThrust && b.CustomData.ToUpper().Contains("-RIGHT")).Select(b => new Thruster(b as IMyThrust, Direction.Right)).ToArray());
-                _thrusterGroups[Direction.Forward] = new ThrusterGroup(Direction.Forward, AllGridBlocks.Where(b => b is IMyThrust && b.CustomData.ToUpper().Contains("-FORWARD")).Select(b => new Thruster(b as IMyThrust, Direction.Forward)).ToArray());
-                _thrusterGroups[Direction.Backward] = new ThrusterGroup(Direction.Backward, AllGridBlocks.Where(b => b is IMyThrust && b.CustomData.ToUpper().Contains("-BACKWARD")).Select(b => new Thruster(b as IMyThrust, Direction.Backward)).ToArray());
+                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 0")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 1")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 2")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 3")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 4")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 5")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
 
-                if (_thrusterGroups.Count(tg => tg.Value.Thrusters.Count > 0) == 0)
+                if (_thrusterGroups.Count(tg => tg.Thrusters.Count > 0) == 0)
                 {
                     DebugWrite("Error: no thrusters found!\n", true);
                     throw new Exception("No thrusters found!\n");
@@ -189,8 +190,49 @@ namespace IngameScript
                 _proxySensorRange = Config.Get("Config", "ProxySensorRange").ToSingle(5);
                 Config.Set("Config", "ProxySensorRange", _proxySensorRange);
 
-                _maxForwardAccel = _thrusterGroups[Direction.Forward].MaxThrust / _missileMass;
-                _maxRadialAccel = _thrusterGroups[Direction.Right].MaxThrust / _missileMass;
+                MatrixD referenceOrientation = SystemCoordinator.ReferenceWorldMatrix.GetOrientation();
+
+                _maxThrust[Direction.Backward] = 0;
+                _maxThrust[Direction.Forward] = 0;
+                _maxThrust[Direction.Right] = 0;
+                _maxThrust[Direction.Left] = 0;
+                _maxThrust[Direction.Up] = 0;
+                _maxThrust[Direction.Down] = 0;
+
+                foreach (var thrusterGroup in _thrusterGroups)
+                {
+                    Vector3 thrust = Vector3.TransformNormal(thrusterGroup.Vector, MatrixD.Transpose(referenceOrientation)) * thrusterGroup.MaxThrust;
+
+                    if (thrust.X > 0)
+                    {
+                        _maxThrust[Direction.Right] += thrust.X;
+                    }
+                    else if (thrust.X < 0)
+                    {
+                        _maxThrust[Direction.Left] += -thrust.X;
+                    }
+
+                    if (thrust.Y > 0)
+                    {
+                        _maxThrust[Direction.Up] += thrust.Y;
+                    }
+                    else if (thrust.Y < 0)
+                    {
+                        _maxThrust[Direction.Down] += -thrust.Y;
+                    }
+
+                    if (thrust.Z > 0)
+                    {
+                        _maxThrust[Direction.Backward] += thrust.Z;
+                    }
+                    else if (thrust.Z < 0)
+                    {
+                        _maxThrust[Direction.Forward] += -thrust.Z;
+                    }
+                }
+
+                _maxForwardAccel = _maxThrust[Direction.Forward] / _missileMass;
+                _maxRadialAccel = _maxThrust[Direction.Right] / _missileMass;
                 _maxAccel = (float)Math.Sqrt(_maxForwardAccel * _maxForwardAccel + _maxRadialAccel * _maxRadialAccel);
 
                 _pitchController = new PIDControl(_kp, _ki, _kd);
@@ -215,7 +257,7 @@ namespace IngameScript
                 _h2Tanks.ForEach(t => t.TankBlock.Stockpile = true);
                 _batteries.ForEach(b => b.BatteryBlock.ChargeMode = ChargeMode.Recharge);
 
-                foreach (var thrusterGroup in _thrusterGroups.Values)
+                foreach (var thrusterGroup in _thrusterGroups)
                 {
                     foreach (var thruster in thrusterGroup.Thrusters)
                     {
@@ -254,8 +296,8 @@ namespace IngameScript
                     double closingSpeed = -Vector3D.Dot(rangeUnit, relVel);
                     double timeToTarget = dist / closingSpeed;
 
-                    Vector3D forwardVector = SystemCoordinator.ReferenceWorldMatrix.Forward;
                     Vector3D gravVector = SystemCoordinator.ReferenceGravity;
+                    MatrixD referenceOrientation = SystemCoordinator.ReferenceWorldMatrix.GetOrientation();
 
                     Vector3D vectorToAlign;
                     Vector3D accelVector;
@@ -265,29 +307,29 @@ namespace IngameScript
                             if (time - _launchTime < _dismountPeriod)
                             {
                                 Vector3D dismountVector;
-                                double dismountAccel = _thrusterGroups[_dismountDirection].MaxThrust / _missileMass;
+                                double dismountAccel = _maxThrust[_dismountDirection] / _missileMass;
                                 switch (_dismountDirection)
                                 {
                                     case Direction.Up:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Up;
+                                        dismountVector = referenceOrientation.Up;
                                         break;
                                     case Direction.Down:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Down;
+                                        dismountVector = referenceOrientation.Down;
                                         break;
                                     case Direction.Left:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Left;
+                                        dismountVector = referenceOrientation.Left;
                                         break;
                                     case Direction.Right:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Right;
+                                        dismountVector = referenceOrientation.Right;
                                         break;
                                     case Direction.Forward:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Forward;
+                                        dismountVector = referenceOrientation.Forward;
                                         break;
                                     case Direction.Backward:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Backward;
+                                        dismountVector = referenceOrientation.Backward;
                                         break;
                                     default:
-                                        dismountVector = SystemCoordinator.ReferenceWorldMatrix.Up;
+                                        dismountVector = referenceOrientation.Up;
                                         break;
                                 }
                                 accelVector = dismountVector * dismountAccel;
@@ -295,29 +337,29 @@ namespace IngameScript
                             else
                             {
                                 Vector3D launchVector;
-                                double launchAccel = _thrusterGroups[_launchDirection].MaxThrust / _missileMass;
+                                double launchAccel = _maxThrust[_launchDirection] / _missileMass;
                                 switch (_launchDirection)
                                 {
                                     case Direction.Up:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Up;
+                                        launchVector = referenceOrientation.Up;
                                         break;
                                     case Direction.Down:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Down;
+                                        launchVector = referenceOrientation.Down;
                                         break;
                                     case Direction.Left:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Left;
+                                        launchVector = referenceOrientation.Left;
                                         break;
                                     case Direction.Right:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Right;
+                                        launchVector = referenceOrientation.Right;
                                         break;
                                     case Direction.Forward:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Forward;
+                                        launchVector = referenceOrientation.Forward;
                                         break;
                                     case Direction.Backward:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Backward;
+                                        launchVector = referenceOrientation.Backward;
                                         break;
                                     default:
-                                        launchVector = SystemCoordinator.ReferenceWorldMatrix.Forward;
+                                        launchVector = referenceOrientation.Forward;
                                         break;
                                 }
                                 accelVector = launchVector * launchAccel;
@@ -330,7 +372,7 @@ namespace IngameScript
                                 Vector3D gravCompensation = -gravVector - Vector3D.Dot(-gravVector, accelUnit) * accelUnit;
                                 accelVector += gravCompensation;
                             }
-                            vectorToAlign = forwardVector;
+                            vectorToAlign = referenceOrientation.Forward;
 
                             if (time - _launchTime > _launchPeriod)
                             {
@@ -384,12 +426,12 @@ namespace IngameScript
                             break;
 
                         default:
-                            vectorToAlign = forwardVector;
+                            vectorToAlign = referenceOrientation.Forward;
                             accelVector = Vector3D.Zero;
                             break;
                     }
-                    Vector3D forwardVectorLocal = Vector3D.TransformNormal(forwardVector, MatrixD.Transpose(SystemCoordinator.ReferenceWorldMatrix));
-                    Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(SystemCoordinator.ReferenceWorldMatrix));
+                    Vector3D forwardVectorLocal = Vector3D.TransformNormal(referenceOrientation.Forward, MatrixD.Transpose(referenceOrientation));
+                    Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(referenceOrientation));
                     double dot = Vector3D.Dot(forwardVectorLocal, vectorToAlignLocal);
                     double epsilon = 1e-6;
                     Vector3D rotationVector;
@@ -414,16 +456,20 @@ namespace IngameScript
                     float yawCorrection = _yawController.Run((float)yawError, (float)timeDelta);
                     float pitchCorrection = _pitchController.Run((float)pitchError, (float)timeDelta);
 
+                    Vector3 momentLocal = new Vector3(pitchCorrection, yawCorrection, 0);
+                    Vector3 momentWorld = Vector3D.TransformNormal(momentLocal, referenceOrientation);
+
                     foreach (Gyro gyro in _gyros)
                     {
-                        gyro.Pitch = pitchCorrection;
-                        gyro.Yaw = yawCorrection;
+                        Vector3 momentGyro = Vector3D.TransformNormal(momentWorld, MatrixD.Transpose(gyro.GyroBlock.WorldMatrix.GetOrientation()));
+                        gyro.Pitch = momentGyro.X;
+                        gyro.Yaw = momentGyro.Y;
                     }
 
 
-                    double alignment = Vector3D.Dot(vectorToAlign, forwardVector);
+                    double alignment = Vector3D.Dot(vectorToAlign, referenceOrientation.Forward);
                     Vector3D desiredThrustVector = accelVector * _missileMass;
-                    foreach (var thrusterGroup in _thrusterGroups.Values)
+                    foreach (var thrusterGroup in _thrusterGroups)
                     {
                         if (alignment > 0.9f)
                         {
@@ -532,7 +578,7 @@ namespace IngameScript
                 _h2Tanks.ForEach(t => t.TankBlock.Stockpile = false);
                 _batteries.ForEach(b => b.BatteryBlock.ChargeMode = ChargeMode.Discharge);
 
-                foreach (var thrusterGroup in _thrusterGroups.Values)
+                foreach (var thrusterGroup in _thrusterGroups)
                 {
                     foreach (var thruster in thrusterGroup.Thrusters)
                     {

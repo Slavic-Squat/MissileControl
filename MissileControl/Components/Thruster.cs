@@ -25,7 +25,6 @@ namespace IngameScript
         public class Thruster
         {
             public IMyThrust ThrusterBlock { get; private set; }
-            public Direction Direction { get; private set; }
             public Vector3 Vector => ThrusterBlock.WorldMatrix.Backward;
             public float MaxThrust => ThrusterBlock.MaxEffectiveThrust;
             public float ThrustOverride
@@ -46,8 +45,7 @@ namespace IngameScript
                     ThrusterBlock.ThrustOverridePercentage = value;
                 }
             }
-
-            public Thruster(IMyThrust thruster, Direction direction)
+            public Thruster(IMyThrust thruster)
             {
                 ThrusterBlock = thruster;
                 if (ThrusterBlock == null)
@@ -55,10 +53,9 @@ namespace IngameScript
                     DebugWrite($"Thruster is null!\n", true);
                     throw new Exception($"Thruster is null!\n");
                 }
-                Direction = direction;
             }
 
-            public Thruster(string thrusterName, Direction direction)
+            public Thruster(string thrusterName)
             {
                 thrusterName = thrusterName.ToUpper();
                 ThrusterBlock = AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains(thrusterName)).FirstOrDefault() as IMyThrust;

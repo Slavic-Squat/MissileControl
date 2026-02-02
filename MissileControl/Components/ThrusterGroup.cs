@@ -25,7 +25,6 @@ namespace IngameScript
         public class ThrusterGroup
         {
             public IReadOnlyList<Thruster> Thrusters => _thrusters;
-            public Direction Direction { get; private set; }
             public Vector3 Vector => _thrusters.Count > 0 ? _thrusters[0].Vector : Vector3.Zero;
             public float MaxThrust => _thrusters.Sum(t => t.MaxThrust);
             public float ThrustOverride
@@ -54,9 +53,8 @@ namespace IngameScript
             private float _thrustOverridePercentage;
             private List<Thruster> _thrusters = new List<Thruster>();
 
-            public ThrusterGroup(Direction direction, params Thruster[] thrusters)
+            public ThrusterGroup(params Thruster[] thrusters)
             {
-                Direction = direction;
                 _thrusters = thrusters.ToList();
             }
         }
