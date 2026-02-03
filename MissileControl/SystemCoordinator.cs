@@ -44,7 +44,6 @@ namespace IngameScript
             public double Time { get; private set; }
 
             private double _globalTimeOffset;
-            private IMySoundBlock _soundBlock;
             public SystemCoordinator()
             {
                 GetBlocks();
@@ -77,8 +76,6 @@ namespace IngameScript
                     DebugWrite("Error: missile controller not found!\n", true);
                     throw new Exception("missile controller not found!\n");
                 }
-
-                _soundBlock = AllGridBlocks.Where(b => b is IMySoundBlock).FirstOrDefault() as IMySoundBlock;
             }
 
             public void Run(double time)
@@ -173,26 +170,6 @@ namespace IngameScript
 
             private void LaunchMissile()
             {
-                if (_soundBlock != null)
-                {
-                    Random rand = new Random();
-
-                    int num = rand.Next(0, 10);
-
-                    switch (num)
-                    {
-                        case 0:
-                            _soundBlock.SelectedSound = "Missile 0";
-                            _soundBlock.Play();
-                            break;
-                        case 1:
-                            _soundBlock.SelectedSound = "Missile 1";
-                            _soundBlock.Play();
-                            break;
-                        default:
-                            break;
-                    }
-                }
                 MissileControl.Launch();
             }
 

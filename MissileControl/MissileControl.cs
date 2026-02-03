@@ -280,6 +280,12 @@ namespace IngameScript
                 {
                     double timeDelta = time - Time;
 
+                    _missileMass = _remoteCtrl.CalculateShipMass().TotalMass;
+                    _maxForwardAccel = _maxThrust[Direction.Forward] / _missileMass;
+                    _maxRadialAccel = _maxThrust[Direction.Right] / _missileMass;
+                    _maxAccel = (float)Math.Sqrt(_maxForwardAccel * _maxForwardAccel + _maxRadialAccel * _maxRadialAccel);
+                    _missileGuidance.MaxAccel = _maxAccel;
+
                     Vector3D missilePos = SystemCoordinator.ReferencePosition;
                     Vector3D missileVel = SystemCoordinator.ReferenceVelocity;
 
@@ -430,14 +436,14 @@ namespace IngameScript
                             accelVector = Vector3D.Zero;
                             break;
                     }
-                    Vector3D forwardVectorLocal = Vector3D.TransformNormal(referenceOrientation.Forward, MatrixD.Transpose(referenceOrientation));
+
                     Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(referenceOrientation));
-                    double dot = Vector3D.Dot(forwardVectorLocal, vectorToAlignLocal);
+                    double dot = Vector3D.Dot(Vector3D.Forward, vectorToAlignLocal);
                     double epsilon = 1e-6;
                     Vector3D rotationVector;
                     if (dot <= -1 + epsilon)
                     {
-                        rotationVector = Vector3D.CalculatePerpendicularVector(forwardVectorLocal);
+                        rotationVector = Vector3D.Right;
                     }
                     else if (dot >= 1 - epsilon)
                     {
@@ -445,7 +451,7 @@ namespace IngameScript
                     }
                     else
                     {
-                        rotationVector = Vector3D.Cross(forwardVectorLocal, vectorToAlignLocal);
+                        rotationVector = Vector3D.Cross(Vector3D.Forward, vectorToAlignLocal);
                     }
                     double rotationAngle = Math.Acos(MathHelper.Clamp(dot, -1, 1));
                     Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationVector, (float)rotationAngle);
