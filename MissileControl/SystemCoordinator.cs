@@ -59,10 +59,10 @@ namespace IngameScript
 
                 CommunicationHandler0.RegisterTag("TARGET_INFO", true);
                 CommunicationHandler0.RegisterTag("COMMANDS", true);
-                CommandHandler0.RegisterCommand("SYNC_CLOCK", (args) => SyncClock(args[0]));
+                CommandHandler0.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
                 CommandHandler0.RegisterCommand("ON", (args) => TurnOn());
                 CommandHandler0.RegisterCommand("OFF", (args) => TurnOff());
-                CommandHandler0.RegisterCommand("ACTIVATE", (args) => ActivateMissile(args[0], args[1], args[2]));
+                CommandHandler0.RegisterCommand("ACTIVATE", (args) => { if (args.Length > 2) ActivateMissile(args[0], args[1], args[2]); });
                 CommandHandler0.RegisterCommand("DEACTIVATE", (args) => DeactivateMissile());
                 CommandHandler0.RegisterCommand("LAUNCH", (args) => LaunchMissile());
                 CommandHandler0.RegisterCommand("ABORT", (args) => AbortMissile());
