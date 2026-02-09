@@ -41,8 +41,8 @@ namespace IngameScript
             public MissilePayload Payload => MissileControl.PayloadType;
             public EntityInfo Self { get; private set; }
             public EntityInfo Target { get; private set; }
-            public double Time { get; private set; }
 
+            private double _time;
             private double _globalTimeOffset;
             public SystemCoordinator()
             {
@@ -77,9 +77,9 @@ namespace IngameScript
 
             public void Run(double time)
             {
-                if (Time == 0)
+                if (_time == 0)
                 {
-                    Time = time;
+                    _time = time;
                     return;
                 }
 
@@ -126,7 +126,7 @@ namespace IngameScript
                 {
                     AbortMissile();
                 }
-                Time = time;
+                _time = time;
             }
 
             private void SyncClock(string timeString)
@@ -134,7 +134,7 @@ namespace IngameScript
                 double time;
                 if (double.TryParse(timeString, out time))
                 {
-                    _globalTimeOffset = time - Time;
+                    _globalTimeOffset = time - _time;
                 }
             }
 

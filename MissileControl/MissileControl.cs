@@ -24,6 +24,7 @@ namespace IngameScript
     {
         public class MissileControl
         {
+            private double _time;
             private List<Gyro> _gyros = new List<Gyro>();
             private List<IMyWarhead> _payload = new List<IMyWarhead>();
             private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>();
@@ -60,8 +61,6 @@ namespace IngameScript
 
             private EntityInfo _target;
             private double _launchTime;
-
-            public double Time { get; private set; }
             public MissileStage Stage { get; private set; } = MissileStage.Building;
             public MissileType Type => _type;
             public MissileGuidanceType GuidanceType => _guidanceType;
@@ -259,9 +258,9 @@ namespace IngameScript
 
             public void Run(double time)
             {
-                if (Time == 0)
+                if (_time == 0)
                 {
-                    Time = time;
+                    _time = time;
                     return;
                 }
                 double globalTime = SystemCoordinator.GlobalTime;
@@ -292,7 +291,7 @@ namespace IngameScript
                 }
                 else if (Stage > MissileStage.Active)
                 {
-                    double timeDelta = time - Time;
+                    double timeDelta = time - _time;
 
                     _missileMass = _remoteCtrl.CalculateShipMass().TotalMass;
                     _maxForwardAccel = _maxThrust[Direction.Forward] / _missileMass;
@@ -503,7 +502,7 @@ namespace IngameScript
                         }
                     }
                 }
-                Time = time;
+                _time = time;
             }
 
             private void ClampAndAlign(Vector3D currentVectorToAlign, ref Vector3D accelVector, out Vector3D newVectorToAlign)
@@ -572,6 +571,8 @@ namespace IngameScript
                     return;
                 }
                 Stage = MissileStage.Active;
+                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
+                MePb.CustomData = Config.ToString();
 
                 _antenna.Enabled = true;
             }
@@ -583,6 +584,8 @@ namespace IngameScript
                     return;
                 }
                 Stage = MissileStage.Idle;
+                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
+                MePb.CustomData = Config.ToString();
 
                 _antenna.Enabled = false;
             }
@@ -594,6 +597,8 @@ namespace IngameScript
                     return;
                 }
                 Stage = MissileStage.Launching;
+                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
+                MePb.CustomData = Config.ToString();
 
                 _h2Tanks.ForEach(t => t.TankBlock.Stockpile = false);
                 _batteries.ForEach(b => b.BatteryBlock.ChargeMode = ChargeMode.Discharge);
@@ -607,7 +612,7 @@ namespace IngameScript
                 }
                 _gyros.ForEach(g => g.GyroBlock.Enabled = true);
 
-                _launchTime = Time;
+                _launchTime = _time;
             }
 
             public void UpdateTarget(EntityInfo target)
@@ -617,7 +622,7 @@ namespace IngameScript
 
             public void Abort()
             {
-                if (Stage > MissileStage.Launching && (Time - _launchTime) > 10)
+                if (Stage > MissileStage.Launching && (_time - _launchTime) > 10)
                 {
                     foreach (IMyWarhead warhead in _payload)
                     {
