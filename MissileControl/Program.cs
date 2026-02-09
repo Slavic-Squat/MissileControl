@@ -42,7 +42,7 @@ namespace IngameScript
 
         private SystemCoordinator _systemCoordinator;
         private double _maxRunTime;
-        private HashSet<long> _processedGrids = new HashSet<long>();
+        private HashSet<long> _validGridIDs = new HashSet<long>();
         private bool _isInitialized = false;
 
         public Program()
@@ -111,57 +111,36 @@ namespace IngameScript
             }
         }
 
-        private void GetAllBlocks()
+        private void GetBlocks()
         {
             _allGridBlocks.Clear();
-            _processedGrids.Clear();
-            List<IMyTerminalBlock> temp = new List<IMyTerminalBlock>();
+            _validGridIDs.Clear();
+            List<IMyMechanicalConnectionBlock> temp = new List<IMyMechanicalConnectionBlock>();
             GridTerminalSystem.GetBlocksOfType(temp, b => b.IsSameConstructAs(Me) && b.CustomName.ToUpper().Contains(_blockTag.ToUpper()));
-            long gridEntityID = MePb.CubeGrid.EntityId;
-            GetGridBlocks(temp, gridEntityID);
-        }
-
-        private void GetGridBlocks(List<IMyTerminalBlock> blocks, long gridEntityID)
-        {
-            _processedGrids.Add(gridEntityID);
-
-            for (int i = blocks.Count - 1; i >= 0; i--)
+            foreach (var block in temp)
             {
-                var block = blocks[i];
-
-                if (block.CubeGrid.EntityId == gridEntityID)
+                MyIni blockConfig = new MyIni();
+                if (!blockConfig.TryParse(block.CustomData))
                 {
-                    _allGridBlocks.Add(block);
-                    blocks.RemoveAt(i);
+                    blockConfig.Clear();
                 }
+                bool includeAttachedGrid = blockConfig.Get("Config", "IncludeAttachedGrid").ToBoolean(true);
+                blockConfig.Set("Config", "IncludeAttachedGrid", includeAttachedGrid);
+                block.CustomData = blockConfig.ToString();
 
-                if (block is IMyMechanicalConnectionBlock)
+                if (includeAttachedGrid && block.IsAttached)
                 {
-                    MyIni blockConfig = new MyIni();
-                    if (!blockConfig.TryParse(block.CustomData))
-                    {
-                        blockConfig.Clear();
-                    }
-                    bool includeAttachedGrid = blockConfig.Get("Config", "IncludeAttachedGrid").ToBoolean(true);
-                    blockConfig.Set("Config", "IncludeAttachedGrid", includeAttachedGrid);
-                    block.CustomData = blockConfig.ToString();
-
-                    if (!includeAttachedGrid)
-                    {
-                        continue;
-                    }
-                    long attachedGridEntityID = (block as IMyMechanicalConnectionBlock).TopGrid?.EntityId ?? 0;
-                    if (attachedGridEntityID != 0 && !_processedGrids.Contains(attachedGridEntityID))
-                    {
-                        GetGridBlocks(blocks, attachedGridEntityID);
-                    }
+                    _validGridIDs.Add(block.CubeGrid.EntityId);
                 }
             }
+            _validGridIDs.Add(Me.CubeGrid.EntityId);
+
+            GridTerminalSystem.GetBlocksOfType(_allGridBlocks, b => _validGridIDs.Contains(b.CubeGrid.EntityId) && b.CustomName.ToUpper().Contains(_blockTag.ToUpper()));
         }
 
         private void Init()
         {
-            GetAllBlocks();
+            GetBlocks();
             _systemCoordinator = new SystemCoordinator();
             Me.CustomData = Config.ToString();
             _isInitialized = true;
