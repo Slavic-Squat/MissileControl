@@ -31,17 +31,5 @@ namespace IngameScript
         {
             None, MissileInfoLite, MissileInfo,
         }
-        public static class EntityEnumHelper
-        {
-            public static string GetDisplayString(EntityType type)
-            {
-                switch (type)
-                {
-                    case EntityType.Target: return "TRGT";
-                    case EntityType.Missile: return "MISL";
-                    default: return "N/A";
-                }
-            }
-        }
     }
 }

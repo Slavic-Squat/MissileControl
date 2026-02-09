@@ -25,7 +25,6 @@ namespace IngameScript
         public class MissileControl
         {
             private List<Gyro> _gyros = new List<Gyro>();
-            private IMyShipConnector _connector;
             private List<IMyWarhead> _payload = new List<IMyWarhead>();
             private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>();
             private Dictionary<Direction, float> _maxThrust = new Dictionary<Direction, float>();
@@ -63,7 +62,7 @@ namespace IngameScript
             private double _launchTime;
 
             public double Time { get; private set; }
-            public MissileStage Stage { get; private set; } = MissileStage.Idle;
+            public MissileStage Stage { get; private set; } = MissileStage.Building;
             public MissileType Type => _type;
             public MissileGuidanceType GuidanceType => _guidanceType;
             public MissilePayload PayloadType => _payloadType;
@@ -93,13 +92,6 @@ namespace IngameScript
                 {
                     DebugWrite("Error: no gyros found!\n", true);
                     throw new Exception("No gyros found!\n");
-                }
-
-                _connector = AllGridBlocks.Where(b => b is IMyShipConnector).FirstOrDefault() as IMyShipConnector;
-                if (_connector == null)
-                {
-                    DebugWrite("Error: no connector found!\n", true);
-                    throw new Exception("No connector found!\n");
                 }
 
                 _payload = AllGridBlocks.Where(b => b is IMyWarhead).Cast<IMyWarhead>().ToList();
@@ -147,14 +139,14 @@ namespace IngameScript
 
             private void Init()
             {
-                _type = MissileEnumHelper.GetMissileType(Config.Get("Config", "Type").ToString(MissileEnumHelper.GetDisplayString(MissileType.Unknown)));
-                Config.Set("Config", "Type", MissileEnumHelper.GetDisplayString(_type));
+                _type = MissileEnumHelper.GetMissileType(Config.Get("Config", "Type").ToString(MissileEnumHelper.GetMissileTypeStr(MissileType.Unknown)));
+                Config.Set("Config", "Type", MissileEnumHelper.GetMissileTypeStr(_type));
 
-                _guidanceType = MissileEnumHelper.GetMissileGuidanceType(Config.Get("Config", "GuidanceType").ToString(MissileEnumHelper.GetDisplayString(MissileGuidanceType.Unknown)));
-                Config.Set("Config", "GuidanceType", MissileEnumHelper.GetDisplayString(_guidanceType));
+                _guidanceType = MissileEnumHelper.GetMissileGuidanceType(Config.Get("Config", "GuidanceType").ToString(MissileEnumHelper.GetMissileGuidanceStr(MissileGuidanceType.Unknown)));
+                Config.Set("Config", "GuidanceType", MissileEnumHelper.GetMissileGuidanceStr(_guidanceType));
 
-                _payloadType = MissileEnumHelper.GetMissilePayload(Config.Get("Config", "Payload").ToString(MissileEnumHelper.GetDisplayString(MissilePayload.Unknown)));
-                Config.Set("Config", "Payload", MissileEnumHelper.GetDisplayString(_payloadType));
+                _payloadType = MissileEnumHelper.GetMissilePayload(Config.Get("Config", "Payload").ToString(MissileEnumHelper.GetMissilePayloadStr(MissilePayload.Unknown)));
+                Config.Set("Config", "Payload", MissileEnumHelper.GetMissilePayloadStr(_payloadType));
 
                 _missileMass = Config.Get("Config", "Mass").ToSingle(10000);
                 Config.Set("Config", "Mass", _missileMass);
@@ -249,8 +241,6 @@ namespace IngameScript
                 _remoteCtrl.ControlThrusters = true;
                 _remoteCtrl.ControlWheels = false;
                 _remoteCtrl.SetValue("ControlGyros", true);
-                _connector.IsParkingEnabled = false;
-                _connector.PullStrength = 0.00015f;
                 _proxySensor.Enabled = false;
                 _proxySensor.EnableRaycast = true;
 
@@ -276,7 +266,31 @@ namespace IngameScript
                 }
                 double globalTime = SystemCoordinator.GlobalTime;
 
-                if (Stage > MissileStage.Active)
+                if (Stage < MissileStage.Idle)
+                {
+                    switch (Stage)
+                    {
+                        case MissileStage.Building:
+                            if (!_remoteCtrl.IsFunctional) break;
+                            if (_h2Tanks.Any(t => !t.TankBlock.IsFunctional)) break;
+                            if (_batteries.Any(b => !b.BatteryBlock.IsFunctional)) break;
+                            if (_thrusterGroups.Any(tg => tg.Thrusters.Any(thruster => !thruster.ThrusterBlock.IsFunctional))) break;
+                            if (_gyros.Any(g => !g.GyroBlock.IsFunctional)) break;
+                            if (_payload.Any(w => !w.IsFunctional)) break;
+                            if (!_antenna.IsFunctional) break;
+                            if (!_proxySensor.IsFunctional) break;
+                            Stage = MissileStage.Fueling;
+                            break;
+                        case MissileStage.Fueling:
+                            if (_h2Tanks.Any(t => !t.IsFull)) break;
+                            if (_batteries.Any(b => !b.IsFull)) break;
+                            Stage = MissileStage.Idle;
+                            break;
+                    }
+                    Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
+                    MePb.CustomData = Config.ToString();
+                }
+                else if (Stage > MissileStage.Active)
                 {
                     double timeDelta = time - Time;
 
@@ -592,8 +606,6 @@ namespace IngameScript
                     }
                 }
                 _gyros.ForEach(g => g.GyroBlock.Enabled = true);
-                _connector.Disconnect();
-                _connector.Enabled = false;
 
                 _launchTime = Time;
             }

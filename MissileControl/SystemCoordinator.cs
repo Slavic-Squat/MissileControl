@@ -52,7 +52,6 @@ namespace IngameScript
 
             private void Init()
             {
-                Config.Set("Config", "MissileID", SelfID);
                 Config.Set("Config", "MissileAddress", IGCS.Me);
 
                 MissileControl = new MissileControl();
@@ -60,8 +59,6 @@ namespace IngameScript
                 CommunicationHandler0.RegisterTag("TARGET_INFO", true);
                 CommunicationHandler0.RegisterTag("COMMANDS", true);
                 CommandHandler0.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
-                CommandHandler0.RegisterCommand("ON", (args) => TurnOn());
-                CommandHandler0.RegisterCommand("OFF", (args) => TurnOff());
                 CommandHandler0.RegisterCommand("ACTIVATE", (args) => { if (args.Length > 2) ActivateMissile(args[0], args[1], args[2]); });
                 CommandHandler0.RegisterCommand("DEACTIVATE", (args) => DeactivateMissile());
                 CommandHandler0.RegisterCommand("LAUNCH", (args) => LaunchMissile());
@@ -116,7 +113,7 @@ namespace IngameScript
 
                 if (MissileControl.Stage > MissileStage.Launching)
                 {
-                    MissileInfo missileInfo = new MissileInfo(LauncherID, Target.EntityID, Stage, Type, GuidanceType, Payload);
+                    MissileInfo missileInfo = new MissileInfo(LauncherID, IGCS.Me, Target.EntityID, Stage, Type, GuidanceType, Payload);
                     MissileInfoLite missileInfoLite = new MissileInfoLite(LauncherID);
                     Self = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileInfo);
                     EntityInfo selfLite = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileInfoLite);
@@ -139,16 +136,6 @@ namespace IngameScript
                 {
                     _globalTimeOffset = time - Time;
                 }
-            }
-
-            private void TurnOn()
-            {
-                RuntimeInfo.UpdateFrequency = UpdateFrequency.Update1;
-            }
-
-            private void TurnOff()
-            {
-                RuntimeInfo.UpdateFrequency = UpdateFrequency.None;
             }
 
             private void ActivateMissile(string launcherAddressString, string launcherIDString, string timeString)

@@ -26,6 +26,7 @@ namespace IngameScript
         public struct MissileInfo
         {
             public long LauncherID { get; private set; }
+            public long Address { get; private set; }
             public MissileStage Stage { get; private set; }
             public MissileType Type { get; private set; }
             public MissileGuidanceType GuidanceType { get; private set; }
@@ -33,9 +34,10 @@ namespace IngameScript
             public long TargetID { get; private set; }
             public bool IsValid { get; private set; }
 
-            public MissileInfo(long launcherID, long targetID, MissileStage stage, MissileType type, MissileGuidanceType guidanceType, MissilePayload payload)
+            public MissileInfo(long launcherID, long address, long targetID, MissileStage stage, MissileType type, MissileGuidanceType guidanceType, MissilePayload payload)
             {
                 LauncherID = launcherID;
+                Address = address;
                 TargetID = targetID;
                 Stage = stage;
                 Type = type;
@@ -49,6 +51,7 @@ namespace IngameScript
                 List<byte> bytes = new List<byte>();
 
                 bytes.AddRange(BitConverter.GetBytes(LauncherID));
+                bytes.AddRange(BitConverter.GetBytes(Address));
                 bytes.Add((byte)Stage);
                 bytes.Add((byte)Type);
                 bytes.Add((byte)GuidanceType);
@@ -62,6 +65,8 @@ namespace IngameScript
                 int index = offset;
                 long launcherID = BitConverter.ToInt64(bytes, index);
                 index += 8;
+                long address = BitConverter.ToInt64(bytes, index);
+                index += 8;
                 MissileStage stage = (MissileStage)bytes[index];
                 index += 1;
                 MissileType type = (MissileType)bytes[index];
@@ -72,7 +77,7 @@ namespace IngameScript
                 index += 1;
                 long targetID = BitConverter.ToInt64(bytes, index);
                 index += 8;
-                return new MissileInfo(launcherID, targetID, stage, type, guidanceType, payload);
+                return new MissileInfo(launcherID, address, targetID, stage, type, guidanceType, payload);
             }
         }
     }
