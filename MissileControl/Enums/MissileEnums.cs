@@ -110,6 +110,7 @@ namespace IngameScript
                     case MissileStage.Building: return "BUILDING";
                     case MissileStage.Fueling: return "FUELING";
                     case MissileStage.Idle: return "IDLE";
+                    case MissileStage.Active: return "ACTIVE";
                     case MissileStage.Launching: return "LAUNCHING";
                     case MissileStage.Flying: return "FLYING";
                     case MissileStage.Interception: return "INTERCEPTION";
