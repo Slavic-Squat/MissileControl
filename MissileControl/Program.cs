@@ -40,7 +40,6 @@ namespace IngameScript
         private static string _blockTag;
 
         private SystemCoordinator _systemCoordinator;
-        private double _maxRunTime;
         private HashSet<long> _validGridIDs = new HashSet<long>();
         private bool _isInitialized = false;
         private MovingAverage _runTimeInfo = new MovingAverage(100);
