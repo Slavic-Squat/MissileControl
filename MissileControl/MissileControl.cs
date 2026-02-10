@@ -65,6 +65,7 @@ namespace IngameScript
             public MissileType Type => _type;
             public MissileGuidanceType GuidanceType => _guidanceType;
             public MissilePayload PayloadType => _payloadType;
+            public EntityInfo Target => _target;
 
             public MissileControl()
             {
@@ -83,56 +84,56 @@ namespace IngameScript
 
                 if (_thrusterGroups.Count(tg => tg.Thrusters.Count > 0) == 0)
                 {
-                    DebugWrite("Error: no thrusters found!\n", true);
-                    throw new Exception("No thrusters found!\n");
+                    DebugEcho("Error: no thrusters found!");
+                    throw new Exception("No thrusters found!");
                 }
                 _gyros = AllGridBlocks.Where(b => b is IMyGyro).Select(b => new Gyro(b as IMyGyro)).ToList();
                 if (_gyros.Count == 0)
                 {
-                    DebugWrite("Error: no gyros found!\n", true);
-                    throw new Exception("No gyros found!\n");
+                    DebugEcho("Error: no gyros found!");
+                    throw new Exception("No gyros found!");
                 }
 
                 _payload = AllGridBlocks.Where(b => b is IMyWarhead).Cast<IMyWarhead>().ToList();
                 if (_payload.Count == 0)
                 {
-                    DebugWrite("Error: no warheads found!\n", true);
-                    throw new Exception("No warheads found!\n");
+                    DebugEcho("Error: no warheads found!");
+                    throw new Exception("No warheads found!");
                 }
 
                 _antenna = AllGridBlocks.Where(b => b is IMyRadioAntenna).FirstOrDefault() as IMyRadioAntenna;
                 if (_antenna == null)
                 {
-                    DebugWrite("Error: no antenna found!\n", true);
-                    throw new Exception("No antenna found!\n");
+                    DebugEcho("Error: no antenna found!");
+                    throw new Exception("No antenna found!");
                 }
 
                 _h2Tanks = AllGridBlocks.Where(b => b is IMyGasTank).Select(b => new GasTank(b as IMyGasTank)).ToList();
                 if (_h2Tanks.Count == 0)
                 {
-                    DebugWrite("Error: no hydrogen tanks found!\n", true);
-                    throw new Exception("No hydrogen tanks found!\n");
+                    DebugEcho("Error: no hydrogen tanks found!");
+                    throw new Exception("No hydrogen tanks found!");
                 }
 
                 _batteries = AllGridBlocks.Where(b => b is IMyBatteryBlock).Select(b => new Battery(b as IMyBatteryBlock)).ToList();
                 if (_batteries.Count == 0)
                 {
-                    DebugWrite("Error: no batteries found!\n", true);
-                    throw new Exception("No batteries found!\n");
+                    DebugEcho("Error: no batteries found!");
+                    throw new Exception("No batteries found!");
                 }
 
                 _remoteCtrl = AllGridBlocks.Where(b => b is IMyRemoteControl).FirstOrDefault() as IMyRemoteControl;
                 if (_remoteCtrl == null)
                 {
-                    DebugWrite("Error: no remote control found!\n", true);
-                    throw new Exception("No remote control found!\n");
+                    DebugEcho("Error: no remote control found!");
+                    throw new Exception("No remote control found!");
                 }
 
                 _proxySensor = AllGridBlocks.Where(b => b is IMyCameraBlock).FirstOrDefault() as IMyCameraBlock;
                 if (_proxySensor == null)
                 {
-                    DebugWrite("Error: no proxy sensor found!\n", true);
-                    throw new Exception("No proxy sensor found!\n");
+                    DebugEcho("Error: no proxy sensor found!");
+                    throw new Exception("No proxy sensor found!");
                 }
             }
 

@@ -33,6 +33,7 @@ namespace IngameScript
             public MissilePayload Payload { get; private set; }
             public long TargetID { get; private set; }
             public bool IsValid { get; private set; }
+            public bool Lite { get; private set; }
 
             public MissileInfo(long launcherID, long address, long targetID, MissileStage stage, MissileType type, MissileGuidanceType guidanceType, MissilePayload payload)
             {
@@ -44,28 +45,66 @@ namespace IngameScript
                 Payload = payload;
                 GuidanceType = guidanceType;
                 IsValid = true;
+                Lite = false;
             }
 
-            public byte[] Serialize()
+            public MissileInfo(long launhcerID)
             {
-                List<byte> bytes = new List<byte>();
-
-                bytes.AddRange(BitConverter.GetBytes(LauncherID));
-                bytes.AddRange(BitConverter.GetBytes(Address));
-                bytes.Add((byte)Stage);
-                bytes.Add((byte)Type);
-                bytes.Add((byte)GuidanceType);
-                bytes.Add((byte)Payload);
-                bytes.AddRange(BitConverter.GetBytes(TargetID));
-                return bytes.ToArray();
+                LauncherID = launhcerID;
+                Address = -1;
+                TargetID = -1;
+                Stage = MissileStage.Unknown;
+                Type = MissileType.Unknown;
+                Payload = MissilePayload.Unknown;
+                GuidanceType = MissileGuidanceType.Unknown;
+                IsValid = true;
+                Lite = true;
             }
 
-            public static MissileInfo Deserialize(byte[] bytes, int offset)
+            public int Serialize(byte[] bytes, int offset)
             {
                 int index = offset;
-                long launcherID = BitConverter.ToInt64(bytes, index);
+                MiscUtilities.WriteInt64(bytes, index, LauncherID);
                 index += 8;
-                long address = BitConverter.ToInt64(bytes, index);
+                if (Lite)
+                {
+                    bytes[index++] = 1;
+                    return index - offset;
+                }
+                bytes[index++] = 0;
+                MiscUtilities.WriteInt64(bytes, index, Address);
+                index += 8;
+                bytes[index++] = (byte)Stage;
+                bytes[index++] = (byte)Type;
+                bytes[index++] = (byte)GuidanceType;
+                bytes[index++] = (byte)Payload;
+                MiscUtilities.WriteInt64(bytes, index, TargetID);
+                index += 8;
+                return index - offset;
+            }
+
+            public static MissileInfo Deserialize(ImmutableArray<byte> bytes, int offset, out int bytesRead)
+            {
+                bytesRead = 0;
+                int index = offset;
+                if (bytes.Length - index < 9)
+                {
+                    return new MissileInfo();
+                }
+                long launcherID = MiscUtilities.ReadInt64(bytes, index);
+                index += 8;
+                bool lite = bytes[index] == 1;
+                index += 1;
+                if (lite)
+                {
+                    bytesRead = index - offset;
+                    return new MissileInfo(launcherID);
+                }
+                if (bytes.Length - index < 20)
+                {
+                    return new MissileInfo();
+                }
+                long address = MiscUtilities.ReadInt64(bytes, index);
                 index += 8;
                 MissileStage stage = (MissileStage)bytes[index];
                 index += 1;
@@ -75,8 +114,9 @@ namespace IngameScript
                 index += 1;
                 MissilePayload payload = (MissilePayload)bytes[index];
                 index += 1;
-                long targetID = BitConverter.ToInt64(bytes, index);
+                long targetID = MiscUtilities.ReadInt64(bytes, index);
                 index += 8;
+                bytesRead = index - offset;
                 return new MissileInfo(launcherID, address, targetID, stage, type, guidanceType, payload);
             }
         }

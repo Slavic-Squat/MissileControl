@@ -25,209 +25,183 @@ namespace IngameScript
         public struct EntityInfo
         {
             public long EntityID { get; private set; }
-            public EntityType Type { get; private set; }
-            public EntityInfoSubType SubType { get; private set; }
+            public EntityType Type => MissileInfo.IsValid ? EntityType.Missile : EntityType.Target;
             public Vector3D Position { get; private set;  }
             public Vector3D Velocity { get; private set; }
             public double TimeRecorded { get; private set; }
-            public MissileInfoLite? MissileInfoLite { get; private set; }
-            public MissileInfo? MissileInfo { get; private set; }
+            public MissileInfo MissileInfo { get; private set; }
             public bool IsValid { get; private set; }
 
             public EntityInfo(long entityID, Vector3D position, Vector3D velocity, double timeRecorded)
             {
                 EntityID = entityID;
-                Type = EntityType.Target;
-                SubType = EntityInfoSubType.None;
                 Position = position;
                 Velocity = velocity;
                 TimeRecorded = timeRecorded;
-                MissileInfoLite = null;
-                MissileInfo = null;
+                MissileInfo = default(MissileInfo);
                 IsValid = true;
             }
 
             public EntityInfo(MyDetectedEntityInfo entityInfo, double timeRecorded)
             {
                 EntityID = entityInfo.EntityId;
-                Type = EntityType.Target;
-                SubType = EntityInfoSubType.None;
                 Position = entityInfo.Position;
                 Velocity = entityInfo.Velocity;
                 TimeRecorded = timeRecorded;
-                MissileInfoLite = null;
-                MissileInfo = null;
-                IsValid = true;
-            }
-
-            public EntityInfo(long entityID, Vector3D position, Vector3D velocity, double timeRecorded, MissileInfoLite missileInfoLite)
-            {
-                EntityID = entityID;
-                Type = EntityType.Missile;
-                SubType = EntityInfoSubType.MissileInfoLite;
-                Position = position;
-                Velocity = velocity;
-                TimeRecorded = timeRecorded;
-                MissileInfoLite = missileInfoLite;
-                MissileInfo = null;
+                MissileInfo = default(MissileInfo);
                 IsValid = true;
             }
 
             public EntityInfo(long entityID, Vector3D position, Vector3D velocity, double timeRecorded, MissileInfo missileInfo)
             {
                 EntityID = entityID;
-                Type = EntityType.Missile;
-                SubType = EntityInfoSubType.MissileInfo;
                 Position = position;
                 Velocity = velocity;
                 TimeRecorded = timeRecorded;
-                MissileInfoLite = null;
                 MissileInfo = missileInfo;
                 IsValid = true;
             }
 
-            public EntityInfo Merge(EntityInfo entityInfo)
+            public EntityInfo Merge(EntityInfo other)
             {
-                if (EntityID != entityInfo.EntityID)
+                if (EntityID != other.EntityID)
                 {
                     return this;
                 }
-                if (TimeRecorded < entityInfo.TimeRecorded)
+                MergeKinematics(other);
+
+                if (Type == EntityType.Target && other.Type == EntityType.Missile)
                 {
-                    Position = entityInfo.Position;
-                    Velocity = entityInfo.Velocity;
-                    TimeRecorded = entityInfo.TimeRecorded;
-                    if (entityInfo.MissileInfo.HasValue)
+                    if (other.MissileInfo.IsValid)
                     {
-                        MissileInfo = entityInfo.MissileInfo;
-                        Type = EntityType.Missile;
-                        SubType = EntityInfoSubType.MissileInfo;
-                        MissileInfoLite = null;
-                    }
-                }
-                if (Type == EntityType.Target && entityInfo.Type == EntityType.Missile)
-                {
-                    Type = EntityType.Missile;
-                    if (entityInfo.MissileInfo.HasValue)
-                    {
-                        MissileInfo = entityInfo.MissileInfo;
-                        SubType = EntityInfoSubType.MissileInfo;
-                        MissileInfoLite = null;
-                    }
-                    else if (entityInfo.MissileInfoLite.HasValue)
-                    {
-                        MissileInfoLite = entityInfo.MissileInfoLite;
-                        SubType = EntityInfoSubType.MissileInfoLite;
-                        MissileInfo = null;
+                        MissileInfo = other.MissileInfo;
                     }
                 }
                 return this;
             }
 
-            public EntityInfo MergeKinematics(EntityInfo entityInfo)
+            public EntityInfo MergeKinematics(EntityInfo other)
             {
-                if (EntityID != entityInfo.EntityID)
+                if (EntityID != other.EntityID)
                 {
                     return this;
                 }
-                if (TimeRecorded < entityInfo.TimeRecorded)
+                if (TimeRecorded < other.TimeRecorded)
                 {
-                    Position = entityInfo.Position;
-                    Velocity = entityInfo.Velocity;
-                    TimeRecorded = entityInfo.TimeRecorded;
+                    Position = other.Position;
+                    Velocity = other.Velocity;
+                    TimeRecorded = other.TimeRecorded;
                 }
                 return this;
             }
 
-            public byte[] Serialize()
-            {
-                List<byte> bytes = new List<byte>();
-
-                bytes.Add((byte)Type);
-                bytes.Add((byte)SubType);
-                bytes.AddRange(BitConverter.GetBytes(EntityID));
-
-                bytes.AddRange(BitConverter.GetBytes(Position.X));
-                bytes.AddRange(BitConverter.GetBytes(Position.Y));
-                bytes.AddRange(BitConverter.GetBytes(Position.Z));
-
-                bytes.AddRange(BitConverter.GetBytes(Velocity.X));
-                bytes.AddRange(BitConverter.GetBytes(Velocity.Y));
-                bytes.AddRange(BitConverter.GetBytes(Velocity.Z));
-
-                bytes.AddRange(BitConverter.GetBytes(TimeRecorded));
-
-                switch (SubType)
-                {
-                    case EntityInfoSubType.MissileInfoLite:
-                        {
-                            bytes.AddRange(MissileInfoLite.Value.Serialize());
-                            break;
-                        }
-                    case EntityInfoSubType.MissileInfo:
-                        {
-                            bytes.AddRange(MissileInfo.Value.Serialize());
-                            break;
-                        }
-                }
-
-                return bytes.ToArray();
-            }
-
-            public static EntityInfo Deserialize(byte[] bytes, int offset)
+            public int Serialize(byte[] bytes, int offset)
             {
                 int index = offset;
+                bytes[index++] = (byte)Type;
+                MiscUtilities.WriteInt64(bytes, index, EntityID);
+                index += 8;
+                MyFixedPoint PosX = (MyFixedPoint)Position.X;
+                MiscUtilities.WriteInt64(bytes, index, PosX.RawValue);
+                index += 8;
+                MyFixedPoint PosY = (MyFixedPoint)Position.Y;
+                MiscUtilities.WriteInt64(bytes, index, PosY.RawValue);
+                index += 8;
+                MyFixedPoint PosZ = (MyFixedPoint)Position.Z;
+                MiscUtilities.WriteInt64(bytes, index, PosZ.RawValue);
+                index += 8;
 
+                MyFixedPoint VelX = (MyFixedPoint)Velocity.X;
+                MiscUtilities.WriteInt64(bytes, index, VelX.RawValue);
+                index += 8;
+                MyFixedPoint VelY = (MyFixedPoint)Velocity.Y;
+                MiscUtilities.WriteInt64(bytes, index, VelY.RawValue);
+                index += 8;
+                MyFixedPoint VelZ = (MyFixedPoint)Velocity.Z;
+                MiscUtilities.WriteInt64(bytes, index, VelZ.RawValue);
+                index += 8;
+                TimeSpan timeSpan = TimeSpan.FromSeconds(TimeRecorded);
+                MiscUtilities.WriteInt64(bytes, index, timeSpan.Ticks);
+                index += 8;
+
+                if (Type == EntityType.Missile)
+                {
+                    index += MissileInfo.Serialize(bytes, index);
+                }
+                return index - offset;
+            }
+
+            public static EntityInfo Deserialize(ImmutableArray<byte> bytes, int offset, out int bytesRead)
+            {
+                bytesRead = 0;
+                int index = offset;
+
+                if (bytes.Length - index < 65)
+                {
+                    return new EntityInfo();
+                }
                 EntityType type = (EntityType)bytes[index];
                 index += 1;
 
-                EntityInfoSubType subType = (EntityInfoSubType)bytes[index];
-                index += 1;
-
-                long entityID = BitConverter.ToInt64(bytes, index);
+                long entityID = MiscUtilities.ReadInt64(bytes, index);
                 index += 8;
 
-                double xPos = BitConverter.ToDouble(bytes, index);
+                MyFixedPoint temp = new MyFixedPoint();
+
+                long posXRaw = MiscUtilities.ReadInt64(bytes, index);
+                temp.RawValue = posXRaw;
+                double xPos = (double)temp;
                 index += 8;
 
-                double yPos = BitConverter.ToDouble(bytes, index);
+                long posYRaw = MiscUtilities.ReadInt64(bytes, index);
+                temp.RawValue = posYRaw;
+                double yPos = (double)temp;
                 index += 8;
 
-                double zPos = BitConverter.ToDouble(bytes, index);
+                long posZRaw = MiscUtilities.ReadInt64(bytes, index);
+                temp.RawValue = posZRaw;
+                double zPos = (double)temp;
                 index += 8;
 
                 Vector3D pos = new Vector3D(xPos, yPos, zPos);
 
-                double xVel = BitConverter.ToDouble(bytes, index);
+                long velXRaw = MiscUtilities.ReadInt64(bytes, index);
+                temp.RawValue = velXRaw;
+                double xVel = (double)temp;
                 index += 8;
 
-                double yVel = BitConverter.ToDouble(bytes, index);
+                long velYRaw = MiscUtilities.ReadInt64(bytes, index);
+                temp.RawValue = velYRaw;
+                double yVel = (double)temp;
                 index += 8;
 
-                double zVel = BitConverter.ToDouble(bytes, index);
+                long velZRaw = MiscUtilities.ReadInt64(bytes, index);
+                temp.RawValue = velZRaw;
+                double zVel = (double)temp;
                 index += 8;
 
                 Vector3D vel = new Vector3D(xVel, yVel, zVel);
 
-                double timeRecorded = BitConverter.ToDouble(bytes, index);
+                long timeTicks = MiscUtilities.ReadInt64(bytes, index);
+                double timeRecorded = TimeSpan.FromTicks(timeTicks).TotalSeconds;
                 index += 8;
 
-                switch (subType)
+                if (type == EntityType.Missile)
                 {
-                    case EntityInfoSubType.MissileInfo:
-                        {
-                            MissileInfo missileInfo = Program.MissileInfo.Deserialize(bytes, index);
-                            return new EntityInfo(entityID, pos, vel, timeRecorded, missileInfo);
-                        }
-                    case EntityInfoSubType.MissileInfoLite:
-                        {
-                            MissileInfoLite missileInfoLite = Program.MissileInfoLite.Deserialize(bytes, index);
-                            return new EntityInfo(entityID, pos, vel, timeRecorded, missileInfoLite);
-                        }
-                    default:
-                        {
-                            return new EntityInfo(entityID, pos, vel, timeRecorded);
-                        }
+                    int missileBytesRead;
+                    MissileInfo missileInfo = MissileInfo.Deserialize(bytes, index, out missileBytesRead);
+                    index += missileBytesRead;
+                    bytesRead = index - offset;
+                    if (!missileInfo.IsValid)
+                    {
+                        return new EntityInfo();
+                    }
+                    return new EntityInfo(entityID, pos, vel, timeRecorded, missileInfo);
+                }
+                else
+                {
+                    bytesRead = index - offset;
+                    return new EntityInfo(entityID, pos, vel, timeRecorded);
                 }
             }
         }

@@ -50,8 +50,8 @@ namespace IngameScript
                 ThrusterBlock = thruster;
                 if (ThrusterBlock == null)
                 {
-                    DebugWrite($"Thruster is null!\n", true);
-                    throw new Exception($"Thruster is null!\n");
+                    DebugEcho($"Thruster is null!");
+                    throw new Exception($"Thruster is null!");
                 }
             }
 
@@ -61,8 +61,8 @@ namespace IngameScript
                 ThrusterBlock = AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains(thrusterName)).FirstOrDefault() as IMyThrust;
                 if (ThrusterBlock == null)
                 {
-                    DebugWrite($"Thruster '{thrusterName}' not found!\n", true);
-                    throw new Exception($"Thruster '{thrusterName}' not found!\n");
+                    DebugEcho($"Thruster '{thrusterName}' not found!");
+                    throw new Exception($"Thruster '{thrusterName}' not found!");
                 }
             }
         }

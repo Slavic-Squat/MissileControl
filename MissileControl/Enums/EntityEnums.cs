@@ -26,10 +26,5 @@ namespace IngameScript
         {
             Target, Missile
         }
-
-        public enum EntityInfoSubType : byte
-        {
-            None, MissileInfoLite, MissileInfo,
-        }
     }
 }

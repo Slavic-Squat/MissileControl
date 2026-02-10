@@ -37,8 +37,8 @@ namespace IngameScript
                 TankBlock = AllGridBlocks.Where(b => b is IMyGasTank && b.CustomName.ToUpper().Contains(blockName)).FirstOrDefault() as IMyGasTank;
                 if (TankBlock == null)
                 {
-                    DebugWrite($"Error: Gas tank '{blockName}' not found!\n", true);
-                    throw new ArgumentException($"Gas tank '{blockName}' not found!\n");
+                    DebugEcho($"Error: Gas tank '{blockName}' not found!");
+                    throw new ArgumentException($"Gas tank '{blockName}' not found!");
                 }
             }
 
@@ -46,8 +46,8 @@ namespace IngameScript
             {
                 if (tankBlock == null)
                 {
-                    DebugWrite("Error: Gas tank is null!\n", true);
-                    throw new ArgumentException("Gas tank is null!\n");
+                    DebugEcho("Error: Gas tank is null!");
+                    throw new ArgumentException("Gas tank is null!");
                 }
                 TankBlock = tankBlock;
             }

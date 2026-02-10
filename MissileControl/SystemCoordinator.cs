@@ -39,11 +39,11 @@ namespace IngameScript
             public MissileType Type => MissileControl.Type;
             public MissileGuidanceType GuidanceType => MissileControl.GuidanceType;
             public MissilePayload Payload => MissileControl.PayloadType;
-            public EntityInfo Self { get; private set; }
-            public EntityInfo Target { get; private set; }
+            public EntityInfo Target => MissileControl.Target;
 
             private double _time;
             private double _globalTimeOffset;
+            private byte[] _selfBuffer = new byte[128];
             public SystemCoordinator()
             {
                 GetBlocks();
@@ -70,8 +70,8 @@ namespace IngameScript
                 ReferenceController = AllGridBlocks.Where(b => b is IMyShipController && b.CustomName.ToUpper().Contains("MISSILE CONTROLLER")).FirstOrDefault() as IMyShipController;
                 if (ReferenceController == null)
                 {
-                    DebugWrite("Error: missile controller not found!\n", true);
-                    throw new Exception("missile controller not found!\n");
+                    DebugEcho("Error: missile controller not found!");
+                    throw new Exception("missile controller not found!");
                 }
             }
 
@@ -86,43 +86,17 @@ namespace IngameScript
                 GlobalTime = time + _globalTimeOffset;
                 DebugEcho($"Global Time: {GlobalTime:F2}s");
 
-                while (CommunicationHandler0.HasMessage("TARGET_INFO", true))
-                {
-                    MyIGCMessage msg;
-                    if (CommunicationHandler0.TryRetrieveMessage("TARGET_INFO", true, out msg))
-                    {
-                        if (msg.Source != LauncherAddress) continue;
-                        byte[] bytes = Convert.FromBase64String(msg.Data as string);
-                        Target = EntityInfo.Deserialize(bytes, 0);
-                    }
-                }
-
-                while (CommunicationHandler0.HasMessage("COMMANDS", true))
-                {
-                    MyIGCMessage msg;
-                    if (CommunicationHandler0.TryRetrieveMessage("COMMANDS", true, out msg))
-                    {
-                        if (msg.Source != LauncherAddress) continue;
-                        string command = msg.Data as string;
-                        CommandHandler0.RunCommands(command);
-                    }
-                }
+                Receive();
 
                 MissileControl.UpdateTarget(Target);
                 MissileControl.Run(time);
 
-                if (MissileControl.Stage > MissileStage.Launching)
+                if (Stage > MissileStage.Launching)
                 {
-                    MissileInfo missileInfo = new MissileInfo(LauncherID, IGCS.Me, Target.EntityID, Stage, Type, GuidanceType, Payload);
-                    MissileInfoLite missileInfoLite = new MissileInfoLite(LauncherID);
-                    Self = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileInfo);
-                    EntityInfo selfLite = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileInfoLite);
-
-                    CommunicationHandler0.SendUnicast(Self.Serialize(), LauncherAddress, "MY_MISSILE_INFO", true);
-                    CommunicationHandler0.SendBroadcast(selfLite.Serialize(), "ALL_MISSILE_INFO", false);
+                    Transmit();
                 }
 
-                if (MissileControl.Stage >= MissileStage.Flying && (!CommunicationHandler0.CanReach(LauncherAddress) || !Target.IsValid))
+                if (Stage >= MissileStage.Flying && (!CommunicationHandler0.CanReach(LauncherAddress) || !Target.IsValid))
                 {
                     AbortMissile();
                 }
@@ -163,6 +137,70 @@ namespace IngameScript
             private void AbortMissile()
             {
                 MissileControl.Abort();
+            }
+
+            private void Transmit()
+            {
+                int index = 0;
+                int sizeIndex = index++;
+
+                MissileInfo missile = new MissileInfo(LauncherID, IGCS.Me, Target.EntityID, Stage, Type, GuidanceType, Payload);
+                MissileInfo missileLite = new MissileInfo(LauncherID);
+                EntityInfo entity = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missile);
+                EntityInfo entityLite = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileLite);
+
+                int bytesWritten = entity.Serialize(_selfBuffer, index);
+                _selfBuffer[sizeIndex] = (byte)bytesWritten;
+                index += bytesWritten;
+
+                if (index > 1)
+                {
+                    ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
+                    CommunicationHandler0.SendUnicast(bytes, LauncherAddress, "MY_MISSILE_INFO", true);
+                }
+
+                index = 0;
+                bytesWritten = entityLite.Serialize(_selfBuffer, index);
+                _selfBuffer[sizeIndex] = (byte)bytesWritten;
+                index += bytesWritten;
+
+                if (index > 1)
+                {
+                    ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
+                    CommunicationHandler0.SendBroadcast(bytes, "ALL_MISSILE_INFO", false);
+                }
+            }
+
+            private void Receive()
+            {
+                while (CommunicationHandler0.HasMessage("TARGET_INFO", true))
+                {
+                    MyIGCMessage message;
+                    if (CommunicationHandler0.TryRetrieveMessage("TARGET_INFO", true, out message))
+                    {
+                        ImmutableArray<byte> bytes = message.As<ImmutableArray<byte>>();
+                        int index = 0;
+                        byte size = bytes[index++];
+                        int bytesRead;
+                        EntityInfo target = EntityInfo.Deserialize(bytes, index, out bytesRead);
+                        if (!target.IsValid || size != bytesRead)
+                        {
+                            continue;
+                        }
+                        MissileControl.UpdateTarget(target);
+                    }
+                }
+
+                while (CommunicationHandler0.HasMessage("COMMANDS", true))
+                {
+                    MyIGCMessage msg;
+                    if (CommunicationHandler0.TryRetrieveMessage("COMMANDS", true, out msg))
+                    {
+                        if (msg.Source != LauncherAddress) continue;
+                        string command = msg.As<string>();
+                        CommandHandler0.RunCommands(command);
+                    }
+                }
             }
         }
     }
