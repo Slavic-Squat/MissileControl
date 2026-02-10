@@ -247,6 +247,7 @@ namespace IngameScript
                     }
                 }
                 
+                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
             }
 
             public void Run(double time)
