@@ -59,7 +59,6 @@ namespace IngameScript
 
                 if (GyroBlock == null)
                 {
-                    DebugEcho($"Gyro is null!");
                     throw new Exception($"Gyro is null!");
                 }
             }
@@ -70,7 +69,6 @@ namespace IngameScript
                 GyroBlock = AllGridBlocks.Where(b => b is IMyGyro && b.CustomName.ToUpper().Contains(gyroName)).FirstOrDefault() as IMyGyro;
                 if (GyroBlock == null)
                 {
-                    DebugEcho($"Gyro '{gyroName}' not found!");
                     throw new Exception($"Gyro '{gyroName}' not found!");
                 }
             }

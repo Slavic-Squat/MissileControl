@@ -25,13 +25,13 @@ namespace IngameScript
         public class MissileControl
         {
             private double _time;
-            private List<Gyro> _gyros = new List<Gyro>();
-            private List<IMyWarhead> _payload = new List<IMyWarhead>();
-            private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>();
-            private Dictionary<Direction, float> _maxThrust = new Dictionary<Direction, float>();
+            private List<Gyro> _gyros = new List<Gyro>(8);
+            private List<IMyWarhead> _payload = new List<IMyWarhead>(16);
+            private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>(8);
+            private Dictionary<Direction, float> _maxThrust = new Dictionary<Direction, float>(6);
             private IMyRadioAntenna _antenna;
-            private List<GasTank> _h2Tanks = new List<GasTank>();
-            private List<Battery> _batteries = new List<Battery>();
+            private List<GasTank> _h2Tanks = new List<GasTank>(8);
+            private List<Battery> _batteries = new List<Battery>(8);
             private IMyRemoteControl _remoteCtrl;
             private IMyCameraBlock _proxySensor;
 
@@ -84,55 +84,47 @@ namespace IngameScript
 
                 if (_thrusterGroups.Count(tg => tg.Thrusters.Count > 0) == 0)
                 {
-                    DebugEcho("Error: no thrusters found!");
                     throw new Exception("No thrusters found!");
                 }
                 _gyros = AllGridBlocks.Where(b => b is IMyGyro).Select(b => new Gyro(b as IMyGyro)).ToList();
                 if (_gyros.Count == 0)
                 {
-                    DebugEcho("Error: no gyros found!");
                     throw new Exception("No gyros found!");
                 }
 
                 _payload = AllGridBlocks.Where(b => b is IMyWarhead).Cast<IMyWarhead>().ToList();
                 if (_payload.Count == 0)
                 {
-                    DebugEcho("Error: no warheads found!");
                     throw new Exception("No warheads found!");
                 }
 
                 _antenna = AllGridBlocks.Where(b => b is IMyRadioAntenna).FirstOrDefault() as IMyRadioAntenna;
                 if (_antenna == null)
                 {
-                    DebugEcho("Error: no antenna found!");
                     throw new Exception("No antenna found!");
                 }
 
                 _h2Tanks = AllGridBlocks.Where(b => b is IMyGasTank).Select(b => new GasTank(b as IMyGasTank)).ToList();
                 if (_h2Tanks.Count == 0)
                 {
-                    DebugEcho("Error: no hydrogen tanks found!");
                     throw new Exception("No hydrogen tanks found!");
                 }
 
                 _batteries = AllGridBlocks.Where(b => b is IMyBatteryBlock).Select(b => new Battery(b as IMyBatteryBlock)).ToList();
                 if (_batteries.Count == 0)
                 {
-                    DebugEcho("Error: no batteries found!");
                     throw new Exception("No batteries found!");
                 }
 
                 _remoteCtrl = AllGridBlocks.Where(b => b is IMyRemoteControl).FirstOrDefault() as IMyRemoteControl;
                 if (_remoteCtrl == null)
                 {
-                    DebugEcho("Error: no remote control found!");
                     throw new Exception("No remote control found!");
                 }
 
                 _proxySensor = AllGridBlocks.Where(b => b is IMyCameraBlock).FirstOrDefault() as IMyCameraBlock;
                 if (_proxySensor == null)
                 {
-                    DebugEcho("Error: no proxy sensor found!");
                     throw new Exception("No proxy sensor found!");
                 }
             }

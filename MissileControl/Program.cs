@@ -22,7 +22,6 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        public static Action<string> DebugEcho { get; private set; }
         public static IMyProgrammableBlock MePb { get; private set; }
         public static IMyGridTerminalSystem GTS { get; private set; }
         public static IReadOnlyList<IMyTerminalBlock> AllGridBlocks => _allGridBlocks;
@@ -34,24 +33,21 @@ namespace IngameScript
         public static CommunicationHandler CommunicationHandler0 { get; private set; }
         public static int DebugCounter { get; set; } = 0;
 
-        private static List<IMyTerminalBlock> _allGridBlocks = new List<IMyTerminalBlock>();
+        private static List<IMyTerminalBlock> _allGridBlocks = new List<IMyTerminalBlock>(128);
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.15";
+        private const string _programVersion = "1.16";
         private static string _blockTag;
 
         private SystemCoordinator _systemCoordinator;
-        private HashSet<long> _validGridIDs = new HashSet<long>();
+        private HashSet<long> _validGridIDs = new HashSet<long>(8);
         private bool _isInitialized = false;
         private MovingAverage _runTimeInfo = new MovingAverage(100);
-        private StringBuilder _debugStringBuilder0 = new StringBuilder();
-        private StringBuilder _debugStringBuilder1 = new StringBuilder();
-        private StringBuilder _debugStringBuilderFull = new StringBuilder();
+        private StringBuilder _debugStringBuilder = new StringBuilder(32);
         private IMyTextSurface _debugScreen;
         private int _runCounter = 0;
 
         public Program()
         {
-            DebugEcho = (s) => _debugStringBuilder1.AppendLine(s);
             _debugScreen = Me.GetSurface(0);
             GTS = GridTerminalSystem;
             IGCS = IGC;
@@ -94,16 +90,15 @@ namespace IngameScript
 
             if (_runCounter % 10 == 0)
             {
-                _debugStringBuilder0.Clear();
-                _debugStringBuilder0.AppendLine($"[{_programName}] | Version: {_programVersion}");
-                _debugStringBuilder0.Append("System Time: ").AppendFormat("{0:F2}s", SystemTime).AppendLine();
-                _debugStringBuilder0.Append("Last Run Time: ").AppendFormat("{0:F2}ms", RuntimeInfo.LastRunTimeMs).AppendLine();
-                _debugStringBuilder0.Append("Max Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Max).AppendLine();
-                _debugStringBuilder0.Append("Avg Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Average).AppendLine();
-                _debugStringBuilder0.Append("--------------------------------------");
+                _debugStringBuilder.Clear();
+                _debugStringBuilder.AppendLine($"[{_programName}] | Version: {_programVersion}");
+                _debugStringBuilder.Append("System Time: ").AppendFormat("{0:F2}s", SystemTime).AppendLine();
+                _debugStringBuilder.Append("Last Run Time: ").AppendFormat("{0:F2}ms", RuntimeInfo.LastRunTimeMs).AppendLine();
+                _debugStringBuilder.Append("Max Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Max).AppendLine();
+                _debugStringBuilder.Append("Avg Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Average).AppendLine();
+                _debugStringBuilder.Append("--------------------------------------");
+                _debugScreen.WriteText(_debugStringBuilder.ToString());
             }
-
-            _debugStringBuilder1.Clear();
 
             if (argument != null)
             {
@@ -115,11 +110,6 @@ namespace IngameScript
             {
                 _systemCoordinator.Run(SystemTime);
             }
-
-            _debugStringBuilderFull.Clear();
-            _debugStringBuilderFull.Append(_debugStringBuilder0).AppendLine().Append(_debugStringBuilder1);
-            Echo(_debugStringBuilderFull.ToString());
-            _debugScreen.WriteText(_debugStringBuilderFull.ToString());
 
             _runCounter++;
             if (_runCounter >= int.MaxValue) _runCounter = 0;

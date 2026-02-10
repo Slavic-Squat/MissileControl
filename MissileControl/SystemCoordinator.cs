@@ -70,7 +70,6 @@ namespace IngameScript
                 ReferenceController = AllGridBlocks.Where(b => b is IMyShipController && b.CustomName.ToUpper().Contains("MISSILE CONTROLLER")).FirstOrDefault() as IMyShipController;
                 if (ReferenceController == null)
                 {
-                    DebugEcho("Error: missile controller not found!");
                     throw new Exception("missile controller not found!");
                 }
             }
@@ -84,7 +83,6 @@ namespace IngameScript
                 }
 
                 GlobalTime = time + _globalTimeOffset;
-                DebugEcho($"Global Time: {GlobalTime:F2}s");
 
                 Receive();
 

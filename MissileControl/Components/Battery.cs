@@ -43,7 +43,6 @@ namespace IngameScript
                 BatteryBlock = AllGridBlocks.Where(b => b is IMyBatteryBlock && b.CustomName.ToUpper().Contains(blockName)).FirstOrDefault() as IMyBatteryBlock;
                 if (BatteryBlock == null)
                 {
-                    DebugEcho($"Error: Battery block '{blockName}' not found!");
                     throw new ArgumentException($"Battery block '{blockName}' not found!");
                 }
             }
@@ -51,7 +50,6 @@ namespace IngameScript
             {
                 if (batteryBlock == null)
                 {
-                    DebugEcho("Error: Battery block is null!");
                     throw new ArgumentException("Battery block is null!");
                 }
                 BatteryBlock = batteryBlock;
