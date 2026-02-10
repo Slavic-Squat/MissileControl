@@ -44,7 +44,7 @@ namespace IngameScript
                 if (BatteryBlock == null)
                 {
                     DebugEcho($"Error: Battery block '{blockName}' not found!");
-                    throw new ArgumentException($"Rotor block '{blockName}' not found!");
+                    throw new ArgumentException($"Battery block '{blockName}' not found!");
                 }
             }
             public Battery(IMyBatteryBlock batteryBlock)
