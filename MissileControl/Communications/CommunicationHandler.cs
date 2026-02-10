@@ -27,9 +27,9 @@ namespace IngameScript
         {
             public int ID { get; private set; }
 
-            private HashSet<IMyBroadcastListener> _broadcastListeners = new HashSet<IMyBroadcastListener>(8);
+            private HashSet<IMyBroadcastListener> _broadcastListeners = new HashSet<IMyBroadcastListener>();
             private IMyUnicastListener _unicastListener;
-            private Dictionary<string, Queue<MyIGCMessage>> _messages = new Dictionary<string, Queue<MyIGCMessage>>(128);
+            private Dictionary<string, Queue<MyIGCMessage>> _messages = new Dictionary<string, Queue<MyIGCMessage>>();
             private long _secureBroadcastPIN;
 
             public CommunicationHandler(int iD, long secureBroadcastPIN)

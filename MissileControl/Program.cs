@@ -33,16 +33,16 @@ namespace IngameScript
         public static CommunicationHandler CommunicationHandler0 { get; private set; }
         public static int DebugCounter { get; set; } = 0;
 
-        private static List<IMyTerminalBlock> _allGridBlocks = new List<IMyTerminalBlock>(128);
+        private static List<IMyTerminalBlock> _allGridBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.16";
+        private const string _programVersion = "1.17";
         private static string _blockTag;
 
         private SystemCoordinator _systemCoordinator;
-        private HashSet<long> _validGridIDs = new HashSet<long>(8);
+        private HashSet<long> _validGridIDs = new HashSet<long>();
         private bool _isInitialized = false;
         private MovingAverage _runTimeInfo = new MovingAverage(100);
-        private StringBuilder _debugStringBuilder = new StringBuilder(32);
+        private StringBuilder _debugStringBuilder = new StringBuilder();
         private IMyTextSurface _debugScreen;
         private int _runCounter = 0;
 

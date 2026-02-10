@@ -25,13 +25,13 @@ namespace IngameScript
         public class MissileControl
         {
             private double _time;
-            private List<Gyro> _gyros = new List<Gyro>(8);
-            private List<IMyWarhead> _payload = new List<IMyWarhead>(16);
-            private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>(8);
-            private Dictionary<Direction, float> _maxThrust = new Dictionary<Direction, float>(6);
+            private List<Gyro> _gyros = new List<Gyro>();
+            private List<IMyWarhead> _payload = new List<IMyWarhead>();
+            private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>();
+            private Dictionary<Direction, float> _maxThrust = new Dictionary<Direction, float>();
             private IMyRadioAntenna _antenna;
-            private List<GasTank> _h2Tanks = new List<GasTank>(8);
-            private List<Battery> _batteries = new List<Battery>(8);
+            private List<GasTank> _h2Tanks = new List<GasTank>();
+            private List<Battery> _batteries = new List<Battery>();
             private IMyRemoteControl _remoteCtrl;
             private IMyCameraBlock _proxySensor;
 
