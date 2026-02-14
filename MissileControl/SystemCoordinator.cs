@@ -104,10 +104,9 @@ namespace IngameScript
             private void SyncClock(string timeString)
             {
                 double time;
-                if (double.TryParse(timeString, out time))
-                {
-                    _globalTimeOffset = time - _time;
-                }
+                if (!double.TryParse(timeString, out time))
+                    return;
+                _globalTimeOffset = time - _time;
             }
 
             private void ActivateMissile(string launcherAddressString, string launcherIDString, string timeString)
