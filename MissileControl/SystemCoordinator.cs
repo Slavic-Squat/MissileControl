@@ -30,6 +30,7 @@ namespace IngameScript
             public static Vector3D ReferencePosition => ReferenceController.GetPosition();
             public static Vector3D ReferenceVelocity => ReferenceController.GetShipVelocities().LinearVelocity;
             public static Vector3D ReferenceGravity => ReferenceController.GetNaturalGravity();
+            public static float ReferenceMass => ReferenceController.CalculateShipMass().TotalMass;
             public static long SelfID => ReferenceController.CubeGrid.EntityId;
 
             public MissileControl MissileControl { get; private set; }
@@ -46,13 +47,19 @@ namespace IngameScript
             private byte[] _selfBuffer = new byte[128];
             public SystemCoordinator()
             {
-                GetBlocks();
                 Init();
             }
 
             private void Init()
             {
+                ReferenceController = AllGridBlocks.FirstOrDefault(b => b is IMyShipController && b.CustomName.ToUpper().Contains("MISSILE CONTROLLER")) as IMyShipController;
+                if (ReferenceController == null)
+                {
+                    throw new Exception("missile controller not found!");
+                }
+
                 Config.Set("Config", "MissileAddress", IGCS.Me);
+                MePb.CustomData = Config.ToString();
 
                 MissileControl = new MissileControl();
 
@@ -63,15 +70,6 @@ namespace IngameScript
                 CommandHandler0.RegisterCommand("DEACTIVATE", (args) => DeactivateMissile());
                 CommandHandler0.RegisterCommand("LAUNCH", (args) => LaunchMissile());
                 CommandHandler0.RegisterCommand("ABORT", (args) => AbortMissile());
-            }
-
-            private void GetBlocks()
-            {
-                ReferenceController = AllGridBlocks.Where(b => b is IMyShipController && b.CustomName.ToUpper().Contains("MISSILE CONTROLLER")).FirstOrDefault() as IMyShipController;
-                if (ReferenceController == null)
-                {
-                    throw new Exception("missile controller not found!");
-                }
             }
 
             public void Run(double time)

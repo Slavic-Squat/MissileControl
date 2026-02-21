@@ -69,7 +69,6 @@ namespace IngameScript
 
             public MissileControl()
             {
-                GetBlocks();
                 Init();
             }
 
@@ -98,7 +97,7 @@ namespace IngameScript
                     throw new Exception("No warheads found!");
                 }
 
-                _antenna = AllGridBlocks.Where(b => b is IMyRadioAntenna).FirstOrDefault() as IMyRadioAntenna;
+                _antenna = AllGridBlocks.FirstOrDefault(b => b is IMyRadioAntenna) as IMyRadioAntenna;
                 if (_antenna == null)
                 {
                     throw new Exception("No antenna found!");
@@ -116,13 +115,13 @@ namespace IngameScript
                     throw new Exception("No batteries found!");
                 }
 
-                _remoteCtrl = AllGridBlocks.Where(b => b is IMyRemoteControl).FirstOrDefault() as IMyRemoteControl;
+                _remoteCtrl = AllGridBlocks.FirstOrDefault(b => b is IMyRemoteControl) as IMyRemoteControl;
                 if (_remoteCtrl == null)
                 {
                     throw new Exception("No remote control found!");
                 }
 
-                _proxySensor = AllGridBlocks.Where(b => b is IMyCameraBlock).FirstOrDefault() as IMyCameraBlock;
+                _proxySensor = AllGridBlocks.FirstOrDefault(b => b is IMyCameraBlock) as IMyCameraBlock;
                 if (_proxySensor == null)
                 {
                     throw new Exception("No proxy sensor found!");
@@ -131,6 +130,8 @@ namespace IngameScript
 
             private void Init()
             {
+                GetBlocks();
+
                 _type = MissileEnumHelper.GetMissileType(Config.Get("Config", "Type").ToString(MissileEnumHelper.GetMissileTypeStr(MissileType.Unknown)));
                 Config.Set("Config", "Type", MissileEnumHelper.GetMissileTypeStr(_type));
 
@@ -248,6 +249,7 @@ namespace IngameScript
                 }
                 
                 Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
+                MePb.CustomData = Config.ToString();
             }
 
             public void Run(double time)

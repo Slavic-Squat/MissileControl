@@ -45,7 +45,7 @@ namespace IngameScript
 
             public float Run(float input, float timeDelta)
             {
-                if (timeDelta == 0 || input == 0 || float.IsNaN(input) || float.IsNaN(timeDelta))
+                if (timeDelta == 0 || float.IsNaN(input) || float.IsNaN(timeDelta))
                 {
                     return 0;
                 }
