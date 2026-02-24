@@ -36,7 +36,7 @@ namespace IngameScript
         }
         public enum MissileStage : byte
         {
-            Unknown, Building, Fueling, Idle, Active, Launching, Flying, Interception
+            Unknown, Building, Fueling, Idle, Launching, Flying, Interception
         }
         public static class MissileEnumHelper
         {
@@ -110,7 +110,6 @@ namespace IngameScript
                     case MissileStage.Building: return "BUILDING";
                     case MissileStage.Fueling: return "FUELING";
                     case MissileStage.Idle: return "IDLE";
-                    case MissileStage.Active: return "ACTIVE";
                     case MissileStage.Launching: return "LAUNCHING";
                     case MissileStage.Flying: return "FLYING";
                     case MissileStage.Interception: return "INTERCEPTION";

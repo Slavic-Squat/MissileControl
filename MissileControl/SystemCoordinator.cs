@@ -34,17 +34,16 @@ namespace IngameScript
             public static long SelfID => ReferenceController.CubeGrid.EntityId;
 
             public MissileControl MissileControl { get; private set; }
-            public long LauncherAddress { get; private set; }
-            public long LauncherID { get; private set; }
-            public MissileStage Stage => MissileControl.Stage;
-            public MissileType Type => MissileControl.Type;
-            public MissileGuidanceType GuidanceType => MissileControl.GuidanceType;
-            public MissilePayload Payload => MissileControl.PayloadType;
-            public EntityInfo Target => MissileControl.Target;
 
             private double _time;
             private double _globalTimeOffset;
             private byte[] _selfBuffer = new byte[128];
+
+            private long _launcherID;
+            private long _launcherAddress;
+            private IMyProgrammableBlock _launcherPb;
+            private string _bayID;
+            private StringBuilder _cmdSb = new StringBuilder();
             public SystemCoordinator()
             {
                 Init();
@@ -52,7 +51,7 @@ namespace IngameScript
 
             private void Init()
             {
-                ReferenceController = AllGridBlocks.FirstOrDefault(b => b is IMyShipController && b.CustomName.ToUpper().Contains("MISSILE CONTROLLER")) as IMyShipController;
+                ReferenceController = AllBlocks.FirstOrDefault(b => b is IMyShipController && b.CustomName.ToUpper().Contains("MISSILE CONTROLLER")) as IMyShipController;
                 if (ReferenceController == null)
                 {
                     throw new Exception("missile controller not found!");
@@ -63,13 +62,13 @@ namespace IngameScript
 
                 MissileControl = new MissileControl();
 
-                CommunicationHandler0.RegisterTag("TARGET_INFO", true);
-                CommunicationHandler0.RegisterTag("COMMANDS", true);
-                CommandHandler0.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
-                CommandHandler0.RegisterCommand("ACTIVATE", (args) => { if (args.Length > 2) ActivateMissile(args[0], args[1], args[2]); });
-                CommandHandler0.RegisterCommand("DEACTIVATE", (args) => DeactivateMissile());
-                CommandHandler0.RegisterCommand("LAUNCH", (args) => LaunchMissile());
-                CommandHandler0.RegisterCommand("ABORT", (args) => AbortMissile());
+                CommunicationHandlerInst.RegisterTag("TARGET_INFO", true);
+                CommunicationHandlerInst.RegisterTag("COMMANDS", true);
+                CommandHandlerInst.RegisterCommand("HANDSHAKE", (args) => { if (args.Length > 3) Handshake(args[0], args[1], args[2], args[3]); });
+                CommandHandlerInst.RegisterCommand("UPDATE_BAY", (args) => UpdateBay());
+                CommandHandlerInst.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
+                CommandHandlerInst.RegisterCommand("LAUNCH", (args) => { if (args.Length > 0) LaunchMissile(args[0]); });
+                CommandHandlerInst.RegisterCommand("ABORT", (args) => AbortMissile());
             }
 
             public void Run(double time)
@@ -84,19 +83,52 @@ namespace IngameScript
 
                 Receive();
 
-                MissileControl.UpdateTarget(Target);
                 MissileControl.Run(time);
+                MissileStage stage = MissileControl.GetStage();
 
-                if (Stage > MissileStage.Launching)
+                if (stage > MissileStage.Launching)
                 {
                     Transmit();
                 }
 
-                if (Stage >= MissileStage.Flying && (!CommunicationHandler0.CanReach(LauncherAddress) || !Target.IsValid))
+                if (stage >= MissileStage.Flying && (!CommunicationHandlerInst.CanReach(_launcherAddress) || !MissileControl.Target.IsValid))
                 {
                     AbortMissile();
                 }
                 _time = time;
+            }
+
+            private void Handshake(string launcherPbIDStr, string bayID, string launcherAddressString, string launcherIDString)
+            {
+                long launcherPbID;
+                if (!long.TryParse(launcherPbIDStr, out launcherPbID)) return;
+                _launcherPb = GTS.GetBlockWithId(launcherPbID) as IMyProgrammableBlock;
+                if (_launcherPb == null) return;
+                long launcherAddress;
+                if (!long.TryParse(launcherAddressString, out launcherAddress)) return;
+                long launcherID;
+                if (!long.TryParse(launcherIDString, out launcherID)) return;
+                _launcherAddress = launcherAddress;
+                _launcherID = launcherID;
+                _bayID = bayID;
+
+                _cmdSb.Clear();
+                _cmdSb.Append("HANDSHAKE ").Append(bayID);
+                _cmdSb.Append(" ").Append(IGCS.Me);
+                _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileTypeStr(MissileControl.Type));
+                _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileGuidanceStr(MissileControl.GuidanceType));
+                _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissilePayloadStr(MissileControl.PayloadType));
+                _launcherPb.TryRun(_cmdSb.ToString());
+            }
+
+            private void UpdateBay()
+            {
+                if (_launcherPb == null || string.IsNullOrEmpty(_bayID)) return;
+                _cmdSb.Clear();
+                _cmdSb.Append("UPDATE_BAY ").Append(_bayID);
+                MissileStage stage = MissileControl.GetStage();
+                _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileStageStr(stage));
+                _launcherPb.TryRun(_cmdSb.ToString());
             }
 
             private void SyncClock(string timeString)
@@ -107,25 +139,10 @@ namespace IngameScript
                 _globalTimeOffset = time - _time;
             }
 
-            private void ActivateMissile(string launcherAddressString, string launcherIDString, string timeString)
+            private void LaunchMissile(string timeString)
             {
-                long launcherAddress;
-                if (!long.TryParse(launcherAddressString, out launcherAddress)) return;
-                long launcherID;
-                if (!long.TryParse(launcherIDString, out launcherID)) return;
-                LauncherAddress = launcherAddress;
-                LauncherID = launcherID;
+                RuntimeInfo.UpdateFrequency = UpdateFrequency.Update1;
                 SyncClock(timeString);
-                MissileControl.Activate();
-            }
-
-            private void DeactivateMissile()
-            {
-                MissileControl.Deactivate();
-            }
-
-            private void LaunchMissile()
-            {
                 MissileControl.Launch();
             }
 
@@ -139,8 +156,13 @@ namespace IngameScript
                 int index = 0;
                 int sizeIndex = index++;
 
-                MissileInfo missile = new MissileInfo(LauncherID, IGCS.Me, Target.EntityID, Stage, Type, GuidanceType, Payload);
-                MissileInfo missileLite = new MissileInfo(LauncherID);
+                EntityInfo target = MissileControl.Target;
+                MissileStage stage = MissileControl.GetStage();
+                MissileType type = MissileControl.Type;
+                MissileGuidanceType guidanceType = MissileControl.GuidanceType;
+                MissilePayload payload = MissileControl.PayloadType;
+                MissileInfo missile = new MissileInfo(_launcherID, IGCS.Me, target.EntityID, stage, type, guidanceType, payload);
+                MissileInfo missileLite = new MissileInfo(_launcherID);
                 EntityInfo entity = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missile);
                 EntityInfo entityLite = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileLite);
 
@@ -151,7 +173,7 @@ namespace IngameScript
                 if (index > 1)
                 {
                     ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
-                    CommunicationHandler0.SendUnicast(bytes, LauncherAddress, "MY_MISSILE_INFO", true);
+                    CommunicationHandlerInst.SendUnicast(bytes, _launcherAddress, "MY_MISSILE_INFO", true);
                 }
 
                 index = 0;
@@ -162,16 +184,16 @@ namespace IngameScript
                 if (index > 1)
                 {
                     ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
-                    CommunicationHandler0.SendBroadcast(bytes, "ALL_MISSILE_INFO", false);
+                    CommunicationHandlerInst.SendBroadcast(bytes, "ALL_MISSILE_INFO", false);
                 }
             }
 
             private void Receive()
             {
-                while (CommunicationHandler0.HasMessage("TARGET_INFO", true))
+                while (CommunicationHandlerInst.HasMessage("TARGET_INFO", true))
                 {
                     MyIGCMessage message;
-                    if (CommunicationHandler0.TryRetrieveMessage("TARGET_INFO", true, out message))
+                    if (CommunicationHandlerInst.TryRetrieveMessage("TARGET_INFO", true, out message))
                     {
                         ImmutableArray<byte> bytes = message.As<ImmutableArray<byte>>();
                         int index = 0;
@@ -186,14 +208,14 @@ namespace IngameScript
                     }
                 }
 
-                while (CommunicationHandler0.HasMessage("COMMANDS", true))
+                while (CommunicationHandlerInst.HasMessage("COMMANDS", true))
                 {
                     MyIGCMessage msg;
-                    if (CommunicationHandler0.TryRetrieveMessage("COMMANDS", true, out msg))
+                    if (CommunicationHandlerInst.TryRetrieveMessage("COMMANDS", true, out msg))
                     {
-                        if (msg.Source != LauncherAddress) continue;
+                        if (msg.Source != _launcherAddress) continue;
                         string command = msg.As<string>();
-                        CommandHandler0.RunCommands(command);
+                        CommandHandlerInst.RunCommands(command);
                     }
                 }
             }

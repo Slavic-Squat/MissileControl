@@ -40,7 +40,7 @@ namespace IngameScript
             public Battery(string blockName)
             {
                 blockName = blockName.ToUpper();
-                BatteryBlock = AllGridBlocks.FirstOrDefault(b => b is IMyBatteryBlock && b.CustomName.ToUpper().Contains(blockName)) as IMyBatteryBlock;
+                BatteryBlock = AllBlocks.FirstOrDefault(b => b is IMyBatteryBlock && b.CustomName.ToUpper().Contains(blockName)) as IMyBatteryBlock;
                 if (BatteryBlock == null)
                 {
                     throw new ArgumentException($"Battery block '{blockName}' not found!");

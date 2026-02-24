@@ -24,26 +24,24 @@ namespace IngameScript
     {
         public static IMyProgrammableBlock MePb { get; private set; }
         public static IMyGridTerminalSystem GTS { get; private set; }
-        public static IReadOnlyList<IMyTerminalBlock> AllGridBlocks => _allGridBlocks;
+        public static IReadOnlyList<IMyTerminalBlock> AllBlocks => _allBlocks;
         public static IMyIntergridCommunicationSystem IGCS { get; private set; }
         public static IMyGridProgramRuntimeInfo RuntimeInfo { get; private set; }
         public static double SystemTime { get; private set; }
         public static MyIni Config { get; private set; }
-        public static CommandHandler CommandHandler0 { get; private set; }
-        public static CommunicationHandler CommunicationHandler0 { get; private set; }
-        public static int DebugCounter { get; set; } = 0;
+        public static CommandHandler CommandHandlerInst { get; private set; }
+        public static CommunicationHandler CommunicationHandlerInst { get; private set; }
 
-        private static List<IMyTerminalBlock> _allGridBlocks = new List<IMyTerminalBlock>();
+        private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.21";
-        private static string _blockTag;
+        private const string _programVersion = "1.22";
 
         private SystemCoordinator _systemCoordinator;
-        private HashSet<long> _validGridIDs = new HashSet<long>();
         private bool _isInitialized = false;
         private MovingAverage _runTimeInfo = new MovingAverage(100);
         private StringBuilder _debugStringBuilder = new StringBuilder();
         private IMyTextSurface _debugScreen;
+        string _lastExceptionMsg = string.Empty;
         private int _runCounter = 0;
 
         public Program()
@@ -61,17 +59,8 @@ namespace IngameScript
                 Config.Clear();
             }
 
-            _blockTag = Config.Get("Config", "BlockTag").ToString("NOT_SET");
-            Config.Set("Config", "BlockTag", _blockTag);
-
-            long secureBroadcastPIN = Config.Get("Config", "SecureBroadcastPIN").ToInt64(123456);
-            Config.Set("Config", "SecureBroadcastPIN", secureBroadcastPIN);
-            CommunicationHandler0 = new CommunicationHandler(0, secureBroadcastPIN);
-
-            CommandHandler0 = new CommandHandler();
-            CommandHandler0.RegisterCommand("TURN_ON", (args) => TurnOn());
-            CommandHandler0.RegisterCommand("TURN_OFF", (args) => TurnOff());
-            CommandHandler0.RegisterCommand("INIT", (args) => Init());
+            CommandHandlerInst = new CommandHandler();
+            CommandHandlerInst.RegisterCommand("INIT", (args) => Init());
 
             MePb.CustomData = Config.ToString();
 
@@ -97,16 +86,17 @@ namespace IngameScript
                 _debugStringBuilder.Append("Max Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Max).AppendLine();
                 _debugStringBuilder.Append("Avg Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Average).AppendLine();
                 _debugStringBuilder.Append("--------------------------------------");
+                _debugStringBuilder.Append(_lastExceptionMsg);
                 _debugScreen.WriteText(_debugStringBuilder);
             }
 
             if (argument != null)
             {
-                CommandHandler0.RunCommands(argument);
+                CommandHandlerInst.RunCommands(argument);
             }
-            CommunicationHandler0.Receive();
+            CommunicationHandlerInst.Receive();
 
-            if (_isInitialized)
+            if (_isInitialized && (updateSource & (UpdateType.Update1 | UpdateType.Update10 | UpdateType.Update100)) != 0)
             {
                 _systemCoordinator.Run(SystemTime);
             }
@@ -115,49 +105,45 @@ namespace IngameScript
             if (_runCounter >= int.MaxValue) _runCounter = 0;
         }
 
-        private void GetBlocks()
-        {
-            _allGridBlocks.Clear();
-            _validGridIDs.Clear();
-            List<IMyMechanicalConnectionBlock> temp = new List<IMyMechanicalConnectionBlock>();
-            GridTerminalSystem.GetBlocksOfType(temp, b => b.IsSameConstructAs(Me) && b.CustomName.ToUpper().Contains(_blockTag.ToUpper()));
-            foreach (var block in temp)
-            {
-                MyIni blockConfig = new MyIni();
-                if (!blockConfig.TryParse(block.CustomData))
-                {
-                    blockConfig.Clear();
-                }
-                bool includeAttachedGrid = blockConfig.Get("Config", "IncludeAttachedGrid").ToBoolean(true);
-                blockConfig.Set("Config", "IncludeAttachedGrid", includeAttachedGrid);
-                block.CustomData = blockConfig.ToString();
-
-                if (includeAttachedGrid && block.IsAttached)
-                {
-                    _validGridIDs.Add(block.TopGrid.EntityId);
-                }
-            }
-            _validGridIDs.Add(Me.CubeGrid.EntityId);
-
-            GridTerminalSystem.GetBlocksOfType(_allGridBlocks, b => _validGridIDs.Contains(b.CubeGrid.EntityId) && b.CustomName.ToUpper().Contains(_blockTag.ToUpper()));
-        }
-
         private void Init()
         {
-            GetBlocks();
-            _systemCoordinator = new SystemCoordinator();
+            _isInitialized = false;
+            _lastExceptionMsg = string.Empty;
+            _allBlocks.Clear();
+            Config.Clear();
+            CommunicationHandlerInst?.Reset();
+
+            if (!Config.TryParse(MePb.CustomData))
+            {
+                Config.Clear();
+            }
+
+            string blockTag = Config.Get("Config", "BlockTag").ToString("NOT_SET");
+            Config.Set("Config", "BlockTag", blockTag);
+
+            long secureBroadcastPIN = Config.Get("Config", "SecureBroadcastPIN").ToInt64(123456);
+            Config.Set("Config", "SecureBroadcastPIN", secureBroadcastPIN);
+            CommunicationHandlerInst = new CommunicationHandler(secureBroadcastPIN);
+            GridTerminalSystem.GetBlocksOfType(_allBlocks, b => b.IsSameConstructAs(Me) && b.CustomName.ToUpper().Contains(blockTag.ToUpper()));
+
+            try
+            {
+                _systemCoordinator = new SystemCoordinator();
+            }
+            catch (Exception ex)
+            {
+                CommandHandlerInst.Clear();
+                Config.Clear();
+                CommunicationHandlerInst.Reset();
+                _lastExceptionMsg = ex.Message;
+
+                CommandHandlerInst.RegisterCommand("INIT", (args) => Init());
+
+                return;
+            }
+
             Me.CustomData = Config.ToString();
             _isInitialized = true;
-        }
-
-        private void TurnOn()
-        {
-            RuntimeInfo.UpdateFrequency = UpdateFrequency.Update1;
-        }
-
-        private void TurnOff()
-        {
-            RuntimeInfo.UpdateFrequency = UpdateFrequency.None;
         }
     }
 }

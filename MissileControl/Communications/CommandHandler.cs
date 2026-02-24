@@ -69,6 +69,11 @@ namespace IngameScript
                 commandName = commandName.ToUpper();
                 _commands[commandName] = commandAction;
             }
+
+            public void Clear()
+            {
+                _commands.Clear();
+            }
         }
     }
 }

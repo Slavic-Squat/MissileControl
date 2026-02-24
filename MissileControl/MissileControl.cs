@@ -53,6 +53,7 @@ namespace IngameScript
             private MissileType _type;
             private MissileGuidanceType _guidanceType;
             private MissilePayload _payloadType;
+            private MissileStage _stage = MissileStage.Building;
             private Direction _launchDirection;
             private double _launchPeriod = 3;
             private Direction _dismountDirection;
@@ -61,7 +62,8 @@ namespace IngameScript
 
             private EntityInfo _target;
             private double _launchTime;
-            public MissileStage Stage { get; private set; } = MissileStage.Building;
+            private Vector3D _velAtLaunch;
+            public MissileStage Stage => GetStage();
             public MissileType Type => _type;
             public MissileGuidanceType GuidanceType => _guidanceType;
             public MissilePayload PayloadType => _payloadType;
@@ -74,54 +76,53 @@ namespace IngameScript
 
             private void GetBlocks()
             {
-                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 0")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
-                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 1")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
-                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 2")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
-                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 3")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
-                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 4")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
-                _thrusterGroups.Add(new ThrusterGroup(AllGridBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 5")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
-
+                _thrusterGroups.Add(new ThrusterGroup(AllBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 0")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 1")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 2")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 3")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 4")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
+                _thrusterGroups.Add(new ThrusterGroup(AllBlocks.Where(b => b is IMyThrust && b.CustomName.ToUpper().Contains("THRUSTER GROUP 5")).Select(b => new Thruster(b as IMyThrust)).ToArray()));
                 if (_thrusterGroups.Count(tg => tg.Thrusters.Count > 0) == 0)
                 {
                     throw new Exception("No thrusters found!");
                 }
-                _gyros = AllGridBlocks.Where(b => b is IMyGyro).Select(b => new Gyro(b as IMyGyro)).ToList();
+                _gyros = AllBlocks.Where(b => b is IMyGyro).Select(b => new Gyro(b as IMyGyro)).ToList();
                 if (_gyros.Count == 0)
                 {
                     throw new Exception("No gyros found!");
                 }
 
-                _payload = AllGridBlocks.Where(b => b is IMyWarhead).Cast<IMyWarhead>().ToList();
+                _payload = AllBlocks.Where(b => b is IMyWarhead).Cast<IMyWarhead>().ToList();
                 if (_payload.Count == 0)
                 {
                     throw new Exception("No warheads found!");
                 }
 
-                _antenna = AllGridBlocks.FirstOrDefault(b => b is IMyRadioAntenna) as IMyRadioAntenna;
+                _antenna = AllBlocks.FirstOrDefault(b => b is IMyRadioAntenna) as IMyRadioAntenna;
                 if (_antenna == null)
                 {
                     throw new Exception("No antenna found!");
                 }
 
-                _h2Tanks = AllGridBlocks.Where(b => b is IMyGasTank).Select(b => new GasTank(b as IMyGasTank)).ToList();
+                _h2Tanks = AllBlocks.Where(b => b is IMyGasTank).Select(b => new GasTank(b as IMyGasTank)).ToList();
                 if (_h2Tanks.Count == 0)
                 {
                     throw new Exception("No hydrogen tanks found!");
                 }
 
-                _batteries = AllGridBlocks.Where(b => b is IMyBatteryBlock).Select(b => new Battery(b as IMyBatteryBlock)).ToList();
+                _batteries = AllBlocks.Where(b => b is IMyBatteryBlock).Select(b => new Battery(b as IMyBatteryBlock)).ToList();
                 if (_batteries.Count == 0)
                 {
                     throw new Exception("No batteries found!");
                 }
 
-                _remoteCtrl = AllGridBlocks.FirstOrDefault(b => b is IMyRemoteControl) as IMyRemoteControl;
+                _remoteCtrl = AllBlocks.FirstOrDefault(b => b is IMyRemoteControl) as IMyRemoteControl;
                 if (_remoteCtrl == null)
                 {
                     throw new Exception("No remote control found!");
                 }
 
-                _proxySensor = AllGridBlocks.FirstOrDefault(b => b is IMyCameraBlock) as IMyCameraBlock;
+                _proxySensor = AllBlocks.FirstOrDefault(b => b is IMyCameraBlock) as IMyCameraBlock;
                 if (_proxySensor == null)
                 {
                     throw new Exception("No proxy sensor found!");
@@ -261,143 +262,77 @@ namespace IngameScript
                 }
                 double globalTime = SystemCoordinator.GlobalTime;
 
-                if (Stage < MissileStage.Idle)
+                double timeDelta = time - _time;
+                _time = time;
+
+                if (Stage < MissileStage.Launching)
                 {
-                    switch (Stage)
-                    {
-                        case MissileStage.Building:
-                            if (!_remoteCtrl.IsFunctional) break;
-                            if (_h2Tanks.Any(t => !t.TankBlock.IsFunctional)) break;
-                            if (_batteries.Any(b => !b.BatteryBlock.IsFunctional)) break;
-                            if (_thrusterGroups.Any(tg => tg.Thrusters.Any(thruster => !thruster.ThrusterBlock.IsFunctional))) break;
-                            if (_gyros.Any(g => !g.GyroBlock.IsFunctional)) break;
-                            if (_payload.Any(w => !w.IsFunctional)) break;
-                            if (!_antenna.IsFunctional) break;
-                            if (!_proxySensor.IsFunctional) break;
-                            Stage = MissileStage.Fueling;
-                            break;
-                        case MissileStage.Fueling:
-                            if (_h2Tanks.Any(t => !t.IsFull)) break;
-                            if (_batteries.Any(b => !b.IsFull)) break;
-                            Stage = MissileStage.Idle;
-                            break;
-                    }
-                    Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
-                    MePb.CustomData = Config.ToString();
+                    return;
                 }
-                else if (Stage > MissileStage.Active)
+
+                _missileMass = _remoteCtrl.CalculateShipMass().TotalMass;
+                _maxForwardAccel = _maxThrust[Direction.Forward] / _missileMass;
+                _maxRadialAccel = _maxThrust[Direction.Right] / _missileMass;
+                _maxAccel = (float)Math.Sqrt(_maxForwardAccel * _maxForwardAccel + _maxRadialAccel * _maxRadialAccel);
+                _missileGuidance.MaxAccel = _maxAccel;
+
+                Vector3D missilePos = SystemCoordinator.ReferencePosition;
+                Vector3D missileVel = SystemCoordinator.ReferenceVelocity;
+
+                Vector3D estimatedTargetPos = _target.Position;
+                if (_target.TimeRecorded < globalTime)
                 {
-                    double timeDelta = time - _time;
+                    double secSinceLastUpdate = globalTime - _target.TimeRecorded;
+                    estimatedTargetPos = _target.Position + _target.Velocity * secSinceLastUpdate;
+                }
+                Vector3D range = estimatedTargetPos - missilePos;
+                double dist = range.Length();
+                Vector3D rangeUnit = dist == 0 ? Vector3D.Zero : range / dist;
+                Vector3D relVel = _target.Velocity - missileVel;
+                double closingSpeed = -Vector3D.Dot(rangeUnit, relVel);
+                double timeToTarget = dist / closingSpeed;
 
-                    _missileMass = _remoteCtrl.CalculateShipMass().TotalMass;
-                    _maxForwardAccel = _maxThrust[Direction.Forward] / _missileMass;
-                    _maxRadialAccel = _maxThrust[Direction.Right] / _missileMass;
-                    _maxAccel = (float)Math.Sqrt(_maxForwardAccel * _maxForwardAccel + _maxRadialAccel * _maxRadialAccel);
-                    _missileGuidance.MaxAccel = _maxAccel;
+                Vector3D gravVector = SystemCoordinator.ReferenceGravity;
+                MatrixD referenceOrientation = SystemCoordinator.ReferenceWorldMatrix.GetOrientation();
 
-                    Vector3D missilePos = SystemCoordinator.ReferencePosition;
-                    Vector3D missileVel = SystemCoordinator.ReferenceVelocity;
-
-                    Vector3D estimatedTargetPos = _target.Position;
-                    if (_target.TimeRecorded < globalTime)
-                    {
-                        double secSinceLastUpdate = globalTime - _target.TimeRecorded;
-                        estimatedTargetPos = _target.Position + _target.Velocity * secSinceLastUpdate;
-                    }
-                    Vector3D range = estimatedTargetPos - missilePos;
-                    double dist = range.Length();
-                    Vector3D rangeUnit = dist == 0 ? Vector3D.Zero : range / dist;
-                    Vector3D relVel = _target.Velocity - missileVel;
-                    double closingSpeed = -Vector3D.Dot(rangeUnit, relVel);
-                    double timeToTarget = dist / closingSpeed;
-
-                    Vector3D gravVector = SystemCoordinator.ReferenceGravity;
-                    MatrixD referenceOrientation = SystemCoordinator.ReferenceWorldMatrix.GetOrientation();
-
-                    Vector3D vectorToAlign;
-                    Vector3D accelVector;
-                    switch (Stage)
-                    {
-                        case MissileStage.Launching:
+                Vector3D vectorToAlign;
+                Vector3D accelVector;
+                switch (Stage)
+                {
+                    case MissileStage.Launching:
+                        {
+                            Vector3D accelDir;
                             if (time - _launchTime < _dismountPeriod)
                             {
-                                Vector3D dismountVector;
-                                double dismountAccel = _maxThrust[_dismountDirection] / _missileMass;
-                                switch (_dismountDirection)
-                                {
-                                    case Direction.Up:
-                                        dismountVector = referenceOrientation.Up;
-                                        break;
-                                    case Direction.Down:
-                                        dismountVector = referenceOrientation.Down;
-                                        break;
-                                    case Direction.Left:
-                                        dismountVector = referenceOrientation.Left;
-                                        break;
-                                    case Direction.Right:
-                                        dismountVector = referenceOrientation.Right;
-                                        break;
-                                    case Direction.Forward:
-                                        dismountVector = referenceOrientation.Forward;
-                                        break;
-                                    case Direction.Backward:
-                                        dismountVector = referenceOrientation.Backward;
-                                        break;
-                                    default:
-                                        dismountVector = referenceOrientation.Up;
-                                        break;
-                                }
-                                accelVector = dismountVector * dismountAccel;
+                                accelDir = DirectionToVector(_dismountDirection, referenceOrientation);
                             }
                             else
                             {
-                                Vector3D launchVector;
-                                double launchAccel = _maxThrust[_launchDirection] / _missileMass;
-                                switch (_launchDirection)
-                                {
-                                    case Direction.Up:
-                                        launchVector = referenceOrientation.Up;
-                                        break;
-                                    case Direction.Down:
-                                        launchVector = referenceOrientation.Down;
-                                        break;
-                                    case Direction.Left:
-                                        launchVector = referenceOrientation.Left;
-                                        break;
-                                    case Direction.Right:
-                                        launchVector = referenceOrientation.Right;
-                                        break;
-                                    case Direction.Forward:
-                                        launchVector = referenceOrientation.Forward;
-                                        break;
-                                    case Direction.Backward:
-                                        launchVector = referenceOrientation.Backward;
-                                        break;
-                                    default:
-                                        launchVector = referenceOrientation.Forward;
-                                        break;
-                                }
-                                accelVector = launchVector * launchAccel;
+                                accelDir = DirectionToVector(_launchDirection, referenceOrientation);
                             }
+
+                            Vector3D velToMaintain = _velAtLaunch - Vector3D.Dot(_velAtLaunch, accelDir) * accelDir;
+                            double freeSpeed = Math.Sqrt(_maxSpeed * _maxSpeed - velToMaintain.LengthSquared());
+                            double accelMag = freeSpeed - Vector3D.Dot(missileVel, accelDir);
+                            accelVector = accelMag * accelDir;
 
                             if (gravVector.LengthSquared() > 0)
                             {
-                                double accelMag = accelVector.Length();
-                                Vector3D accelUnit = accelMag != 0 ? accelVector / accelMag : Vector3D.Zero;
-                                Vector3D gravCompensation = -gravVector - Vector3D.Dot(-gravVector, accelUnit) * accelUnit;
+                                Vector3D gravCompensation = -gravVector - Vector3D.Dot(-gravVector, accelDir) * accelDir;
                                 accelVector += gravCompensation;
                             }
                             vectorToAlign = referenceOrientation.Forward;
 
                             if (time - _launchTime > _launchPeriod)
                             {
-                                Stage = MissileStage.Flying;
+                                _stage = MissileStage.Flying;
                             }
 
                             break;
+                        }
 
-                        case MissileStage.Flying:
-
+                    case MissileStage.Flying:
+                        {
                             accelVector = _missileGuidance.CalculateTotalAccel(estimatedTargetPos, _target.Velocity, missilePos, missileVel);
                             if (gravVector.LengthSquared() > 0)
                             {
@@ -411,15 +346,16 @@ namespace IngameScript
 
                             if (timeToTarget > 0 && timeToTarget < 10)
                             {
-                                Stage = MissileStage.Interception;
+                                _stage = MissileStage.Interception;
                                 _payload.ForEach(w => w.IsArmed = true);
                                 _proxySensor.Enabled = true;
                             }
 
                             break;
+                        }
 
-                        case MissileStage.Interception:
-
+                    case MissileStage.Interception:
+                        {
                             accelVector = _missileGuidance.CalculateTotalAccel(estimatedTargetPos, _target.Velocity, missilePos, missileVel);
                             if (gravVector.LengthSquared() > 0)
                             {
@@ -431,74 +367,74 @@ namespace IngameScript
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
 
-                            Vector3D targetDirCamera = Vector3D.TransformNormal(estimatedTargetPos - _proxySensor.GetPosition(), MatrixD.Transpose(_proxySensor.WorldMatrix)).Normalized();
-                            MyDetectedEntityInfo detection = _proxySensor.Raycast(_proxySensorRange, targetDirCamera);
+                            MyDetectedEntityInfo detection = _proxySensor.Raycast(_proxySensorRange * referenceOrientation.Forward + missilePos);
 
                             if (!detection.IsEmpty() && detection.EntityId == _target.EntityID)
                             {
                                 _payload.ForEach(w => w.Detonate());
                             }
                             break;
+                        }
 
-                        default:
+                    default:
+                        {
                             vectorToAlign = referenceOrientation.Forward;
                             accelVector = Vector3D.Zero;
-                            break;
-                    }
+                        }
+                        break;
+                }
 
-                    Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(referenceOrientation));
-                    double dot = Vector3D.Dot(Vector3D.Forward, vectorToAlignLocal);
-                    double epsilon = 1e-6;
-                    Vector3D rotationVector;
-                    if (dot <= -1 + epsilon)
+                Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(referenceOrientation));
+                double dot = Vector3D.Dot(Vector3D.Forward, vectorToAlignLocal);
+                double epsilon = 1e-6;
+                Vector3D rotationVector;
+                if (dot <= -1 + epsilon)
+                {
+                    rotationVector = Vector3D.Right;
+                }
+                else if (dot >= 1 - epsilon)
+                {
+                    rotationVector = Vector3D.Zero;
+                }
+                else
+                {
+                    rotationVector = Vector3D.Cross(Vector3D.Forward, vectorToAlignLocal);
+                }
+                double rotationAngle = Math.Acos(MathHelper.Clamp(dot, -1, 1));
+                Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationVector, (float)rotationAngle);
+                MatrixD alignedMatrixLocal = MatrixD.CreateFromQuaternion(quaternion);
+
+                double yawError = Math.Atan2(-alignedMatrixLocal.M13, alignedMatrixLocal.M11);
+                double pitchError = Math.Atan2(-alignedMatrixLocal.M32, alignedMatrixLocal.M22);
+                float yawCorrection = _yawController.Run((float)yawError, (float)timeDelta);
+                float pitchCorrection = _pitchController.Run((float)pitchError, (float)timeDelta);
+
+                Vector3 momentLocal = new Vector3(pitchCorrection, yawCorrection, 0);
+                Vector3 momentWorld = Vector3D.TransformNormal(momentLocal, referenceOrientation);
+
+                foreach (Gyro gyro in _gyros)
+                {
+                    Vector3 momentGyro = Vector3D.TransformNormal(momentWorld, MatrixD.Transpose(gyro.GyroBlock.WorldMatrix.GetOrientation()));
+                    gyro.Pitch = momentGyro.X;
+                    gyro.Yaw = momentGyro.Y;
+                }
+
+
+                double alignment = Vector3D.Dot(vectorToAlign, referenceOrientation.Forward);
+                Vector3D desiredThrustVector = accelVector * _missileMass;
+                foreach (var thrusterGroup in _thrusterGroups)
+                {
+                    if (alignment > 0.9f)
                     {
-                        rotationVector = Vector3D.Right;
-                    }
-                    else if (dot >= 1 - epsilon)
-                    {
-                        rotationVector = Vector3D.Zero;
+                        double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
+                        if (value < 0) value = 0;
+                        thrusterGroup.ThrustOverride = (float)value;
                     }
                     else
                     {
-                        rotationVector = Vector3D.Cross(Vector3D.Forward, vectorToAlignLocal);
-                    }
-                    double rotationAngle = Math.Acos(MathHelper.Clamp(dot, -1, 1));
-                    Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationVector, (float)rotationAngle);
-                    MatrixD alignedMatrixLocal = MatrixD.CreateFromQuaternion(quaternion);
-
-                    double yawError = Math.Atan2(-alignedMatrixLocal.M13, alignedMatrixLocal.M11);
-                    double pitchError = Math.Atan2(-alignedMatrixLocal.M32, alignedMatrixLocal.M22);
-                    float yawCorrection = _yawController.Run((float)yawError, (float)timeDelta);
-                    float pitchCorrection = _pitchController.Run((float)pitchError, (float)timeDelta);
-
-                    Vector3 momentLocal = new Vector3(pitchCorrection, yawCorrection, 0);
-                    Vector3 momentWorld = Vector3D.TransformNormal(momentLocal, referenceOrientation);
-
-                    foreach (Gyro gyro in _gyros)
-                    {
-                        Vector3 momentGyro = Vector3D.TransformNormal(momentWorld, MatrixD.Transpose(gyro.GyroBlock.WorldMatrix.GetOrientation()));
-                        gyro.Pitch = momentGyro.X;
-                        gyro.Yaw = momentGyro.Y;
-                    }
-
-
-                    double alignment = Vector3D.Dot(vectorToAlign, referenceOrientation.Forward);
-                    Vector3D desiredThrustVector = accelVector * _missileMass;
-                    foreach (var thrusterGroup in _thrusterGroups)
-                    {
-                        if (alignment > 0.9f)
-                        {
-                            double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
-                            if (value < 0) value = 0;
-                            thrusterGroup.ThrustOverride = (float)value;
-                        }
-                        else
-                        {
-                            thrusterGroup.ThrustOverride = 0;
-                        }
+                        thrusterGroup.ThrustOverride = 0;
                     }
                 }
-                _time = time;
             }
 
             private void ClampAndAlign(Vector3D currentVectorToAlign, ref Vector3D accelVector, out Vector3D newVectorToAlign)
@@ -560,42 +496,36 @@ namespace IngameScript
                 newVectorToAlign = Vector3D.Transform(currentVectorToAlign, quaternion);
             }
 
-            public void Activate()
+            private Vector3D DirectionToVector(Direction direction, MatrixD referenceOrientation)
+            {
+                switch (direction)
+                {
+                    case Direction.Up:
+                        return referenceOrientation.Up;
+                    case Direction.Down:
+                        return referenceOrientation.Down;
+                    case Direction.Left:
+                        return referenceOrientation.Left;
+                    case Direction.Right:
+                        return referenceOrientation.Right;
+                    case Direction.Forward:
+                        return referenceOrientation.Forward;
+                    case Direction.Backward:
+                        return referenceOrientation.Backward;
+                    default:
+                        return referenceOrientation.Forward;
+                }
+            }
+
+            public void Launch()
             {
                 if (Stage != MissileStage.Idle)
                 {
                     return;
                 }
-                Stage = MissileStage.Active;
-                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
-                MePb.CustomData = Config.ToString();
+                _stage = MissileStage.Launching;
 
                 _antenna.Enabled = true;
-            }
-
-            public void Deactivate()
-            {
-                if (Stage >= MissileStage.Launching)
-                {
-                    return;
-                }
-                Stage = MissileStage.Idle;
-                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
-                MePb.CustomData = Config.ToString();
-
-                _antenna.Enabled = false;
-            }
-
-            public void Launch()
-            {
-                if (Stage != MissileStage.Active)
-                {
-                    return;
-                }
-                Stage = MissileStage.Launching;
-                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
-                MePb.CustomData = Config.ToString();
-
                 _h2Tanks.ForEach(t => t.TankBlock.Stockpile = false);
                 _batteries.ForEach(b => b.BatteryBlock.ChargeMode = ChargeMode.Discharge);
 
@@ -609,6 +539,7 @@ namespace IngameScript
                 _gyros.ForEach(g => g.GyroBlock.Enabled = true);
 
                 _launchTime = _time;
+                _velAtLaunch = SystemCoordinator.ReferenceVelocity;
             }
 
             public void UpdateTarget(EntityInfo target)
@@ -626,6 +557,33 @@ namespace IngameScript
                         warhead.Detonate();
                     }
                 }
+            }
+
+            public MissileStage GetStage()
+            {
+                if (_stage < MissileStage.Idle)
+                {
+                    switch (_stage)
+                    {
+                        case MissileStage.Building:
+                            if (!_remoteCtrl.IsFunctional) break;
+                            if (_h2Tanks.Any(t => !t.TankBlock.IsFunctional)) break;
+                            if (_batteries.Any(b => !b.BatteryBlock.IsFunctional)) break;
+                            if (_thrusterGroups.Any(tg => tg.Thrusters.Any(thruster => !thruster.ThrusterBlock.IsFunctional))) break;
+                            if (_gyros.Any(g => !g.GyroBlock.IsFunctional)) break;
+                            if (_payload.Any(w => !w.IsFunctional)) break;
+                            if (!_antenna.IsFunctional) break;
+                            if (!_proxySensor.IsFunctional) break;
+                            _stage = MissileStage.Fueling;
+                            break;
+                        case MissileStage.Fueling:
+                            if (_h2Tanks.Any(t => !t.IsFull)) break;
+                            if (_batteries.Any(b => !b.IsFull)) break;
+                            _stage = MissileStage.Idle;
+                            break;
+                    }
+                }
+                return _stage;
             }
         }
     }

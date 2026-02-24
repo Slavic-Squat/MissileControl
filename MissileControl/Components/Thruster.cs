@@ -57,7 +57,7 @@ namespace IngameScript
             public Thruster(string thrusterName)
             {
                 thrusterName = thrusterName.ToUpper();
-                ThrusterBlock = AllGridBlocks.FirstOrDefault(b => b is IMyThrust && b.CustomName.ToUpper().Contains(thrusterName)) as IMyThrust;
+                ThrusterBlock = AllBlocks.FirstOrDefault(b => b is IMyThrust && b.CustomName.ToUpper().Contains(thrusterName)) as IMyThrust;
                 if (ThrusterBlock == null)
                 {
                     throw new Exception($"Thruster '{thrusterName}' not found!");

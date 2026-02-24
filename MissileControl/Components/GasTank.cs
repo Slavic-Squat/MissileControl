@@ -34,7 +34,7 @@ namespace IngameScript
             public GasTank(string blockName)
             {
                 blockName = blockName.ToUpper();
-                TankBlock = AllGridBlocks.FirstOrDefault(b => b is IMyGasTank && b.CustomName.ToUpper().Contains(blockName)) as IMyGasTank;
+                TankBlock = AllBlocks.FirstOrDefault(b => b is IMyGasTank && b.CustomName.ToUpper().Contains(blockName)) as IMyGasTank;
                 if (TankBlock == null)
                 {
                     throw new ArgumentException($"Gas tank '{blockName}' not found!");

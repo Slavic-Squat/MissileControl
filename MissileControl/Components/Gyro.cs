@@ -66,7 +66,7 @@ namespace IngameScript
             public Gyro(string gyroName)
             {
                 gyroName = gyroName.ToUpper();
-                GyroBlock = AllGridBlocks.FirstOrDefault(b => b is IMyGyro && b.CustomName.ToUpper().Contains(gyroName)) as IMyGyro;
+                GyroBlock = AllBlocks.FirstOrDefault(b => b is IMyGyro && b.CustomName.ToUpper().Contains(gyroName)) as IMyGyro;
                 if (GyroBlock == null)
                 {
                     throw new Exception($"Gyro '{gyroName}' not found!");

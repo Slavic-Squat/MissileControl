@@ -25,16 +25,13 @@ namespace IngameScript
     {
         public class CommunicationHandler
         {
-            public int ID { get; private set; }
-
             private HashSet<IMyBroadcastListener> _broadcastListeners = new HashSet<IMyBroadcastListener>();
             private IMyUnicastListener _unicastListener;
             private Dictionary<string, Queue<MyIGCMessage>> _messages = new Dictionary<string, Queue<MyIGCMessage>>();
             private long _secureBroadcastPIN;
 
-            public CommunicationHandler(int iD, long secureBroadcastPIN)
+            public CommunicationHandler(long secureBroadcastPIN)
             {
-                ID = iD;
                 _unicastListener = IGCS.UnicastListener;
                 _secureBroadcastPIN = secureBroadcastPIN;
             }
@@ -170,6 +167,16 @@ namespace IngameScript
             public bool CanReach(long targetAddress)
             {
                 return IGCS.IsEndpointReachable(targetAddress);
+            }
+
+            public void Reset()
+            {
+                _messages.Clear();
+
+                foreach (var listener in _broadcastListeners)
+                {
+                    IGCS.DisableBroadcastListener(listener);
+                }
             }
         }
     }
