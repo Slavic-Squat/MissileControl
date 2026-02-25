@@ -34,7 +34,7 @@ namespace IngameScript
 
         private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.23";
+        private const string _programVersion = "1.24";
 
         private SystemCoordinator _systemCoordinator;
         private bool _isInitialized = false;
@@ -59,10 +59,12 @@ namespace IngameScript
                 Config.Clear();
             }
 
+            string blockTag = Config.Get("Config", "BlockTag").ToString("NOT_SET");
+            Config.Set("Config", "BlockTag", blockTag);
+            MePb.CustomData = Config.ToString();
+
             CommandHandlerInst = new CommandHandler();
             CommandHandlerInst.RegisterCommand("INIT", (args) => Init());
-
-            MePb.CustomData = Config.ToString();
 
             Me.CubeGrid.CustomName = "Missile";
         }
@@ -112,6 +114,9 @@ namespace IngameScript
             _allBlocks.Clear();
             Config.Clear();
             CommunicationHandlerInst?.Reset();
+            CommandHandlerInst.Clear();
+
+            CommandHandlerInst.RegisterCommand("INIT", (args) => Init());
 
             if (!Config.TryParse(MePb.CustomData))
             {
@@ -123,7 +128,11 @@ namespace IngameScript
 
             long secureBroadcastPIN = Config.Get("Config", "SecureBroadcastPIN").ToInt64(123456);
             Config.Set("Config", "SecureBroadcastPIN", secureBroadcastPIN);
+
+            Me.CustomData = Config.ToString();
+
             CommunicationHandlerInst = new CommunicationHandler(secureBroadcastPIN);
+            
             GridTerminalSystem.GetBlocksOfType(_allBlocks, b => b.IsSameConstructAs(Me) && b.CustomName.ToUpper().Contains(blockTag.ToUpper()));
 
             try

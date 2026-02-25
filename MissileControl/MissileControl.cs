@@ -24,7 +24,7 @@ namespace IngameScript
     {
         public class MissileControl
         {
-            private double _time;
+            private double _lastRunTime;
             private List<Gyro> _gyros = new List<Gyro>();
             private List<IMyWarhead> _payload = new List<IMyWarhead>();
             private List<ThrusterGroup> _thrusterGroups = new List<ThrusterGroup>();
@@ -61,6 +61,7 @@ namespace IngameScript
             private float _proxySensorRange = 5;
 
             private EntityInfo _target;
+            private EntityInfo _lastTarget;
             private double _launchTime;
             private Vector3D _velAtLaunch;
             public MissileStage Stage => GetStage();
@@ -255,15 +256,15 @@ namespace IngameScript
 
             public void Run(double time)
             {
-                if (_time == 0)
+                if (_lastRunTime == 0)
                 {
-                    _time = time;
+                    _lastRunTime = time;
                     return;
                 }
                 double globalTime = SystemCoordinator.GlobalTime;
 
-                double timeDelta = time - _time;
-                _time = time;
+                double timeDelta = time - _lastRunTime;
+                _lastRunTime = time;
 
                 if (Stage < MissileStage.Launching)
                 {
@@ -279,16 +280,11 @@ namespace IngameScript
                 Vector3D missilePos = SystemCoordinator.ReferencePosition;
                 Vector3D missileVel = SystemCoordinator.ReferenceVelocity;
 
-                Vector3D estimatedTargetPos = _target.Position;
-                if (_target.TimeRecorded < globalTime)
-                {
-                    double secSinceLastUpdate = globalTime - _target.TimeRecorded;
-                    estimatedTargetPos = _target.Position + _target.Velocity * secSinceLastUpdate;
-                }
-                Vector3D range = estimatedTargetPos - missilePos;
+                EntityInfo estimatedTarget = EstimateTargetKinematics(_target, _lastTarget);
+                Vector3D range = estimatedTarget.Position - missilePos;
                 double dist = range.Length();
                 Vector3D rangeUnit = dist == 0 ? Vector3D.Zero : range / dist;
-                Vector3D relVel = _target.Velocity - missileVel;
+                Vector3D relVel = estimatedTarget.Velocity - missileVel;
                 double closingSpeed = -Vector3D.Dot(rangeUnit, relVel);
                 double timeToTarget = dist / closingSpeed;
 
@@ -333,7 +329,7 @@ namespace IngameScript
 
                     case MissileStage.Flying:
                         {
-                            accelVector = _missileGuidance.CalculateTotalAccel(estimatedTargetPos, _target.Velocity, missilePos, missileVel);
+                            accelVector = _missileGuidance.CalculateTotalAccel(estimatedTarget.Position, estimatedTarget.Velocity, missilePos, missileVel);
                             if (gravVector.LengthSquared() > 0)
                             {
                                 double accelMag = accelVector.Length();
@@ -356,7 +352,7 @@ namespace IngameScript
 
                     case MissileStage.Interception:
                         {
-                            accelVector = _missileGuidance.CalculateTotalAccel(estimatedTargetPos, _target.Velocity, missilePos, missileVel);
+                            accelVector = _missileGuidance.CalculateTotalAccel(estimatedTarget.Position, estimatedTarget.Velocity, missilePos, missileVel);
                             if (gravVector.LengthSquared() > 0)
                             {
                                 double accelMag = accelVector.Length();
@@ -538,18 +534,40 @@ namespace IngameScript
                 }
                 _gyros.ForEach(g => g.GyroBlock.Enabled = true);
 
-                _launchTime = _time;
+                _launchTime = SystemTime;
                 _velAtLaunch = SystemCoordinator.ReferenceVelocity;
             }
 
             public void UpdateTarget(EntityInfo target)
             {
+                _lastTarget = _target;
                 _target = target;
+            }
+
+            private EntityInfo EstimateTargetKinematics(EntityInfo currentTarget, EntityInfo lastTarget)
+            {
+                if (!currentTarget.IsValid || !lastTarget.IsValid || currentTarget.EntityID != lastTarget.EntityID)
+                {
+                    return currentTarget;
+                }
+                Vector3D accel = Vector3D.Zero;
+                Vector3D velDelta = currentTarget.Velocity - lastTarget.Velocity;
+                double recordedTimeDelta = currentTarget.TimeRecorded - lastTarget.TimeRecorded;
+                if (recordedTimeDelta > 0)
+                {
+                    accel = velDelta / recordedTimeDelta;
+                }
+
+                double timeSinceLastRecord = SystemCoordinator.GlobalTime - currentTarget.TimeRecorded;
+                Vector3D estimatedVel = currentTarget.Velocity + accel * timeSinceLastRecord;
+                Vector3D estimatedPos = currentTarget.Position + currentTarget.Velocity * timeSinceLastRecord + 0.5 * accel * timeSinceLastRecord * timeSinceLastRecord;
+
+                return new EntityInfo(currentTarget.EntityID, estimatedPos, estimatedVel, SystemCoordinator.GlobalTime);
             }
 
             public void Abort()
             {
-                if (Stage > MissileStage.Launching && (_time - _launchTime) > 10)
+                if (Stage > MissileStage.Launching && (SystemTime - _launchTime) > 10)
                 {
                     foreach (IMyWarhead warhead in _payload)
                     {

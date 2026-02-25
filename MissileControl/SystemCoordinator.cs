@@ -35,7 +35,7 @@ namespace IngameScript
 
             public MissileControl MissileControl { get; private set; }
 
-            private double _time;
+            private double _lastRunTime;
             private double _globalTimeOffset;
             private byte[] _selfBuffer = new byte[128];
 
@@ -72,9 +72,9 @@ namespace IngameScript
 
             public void Run(double time)
             {
-                if (_time == 0)
+                if (_lastRunTime == 0)
                 {
-                    _time = time;
+                    _lastRunTime = time;
                     return;
                 }
 
@@ -94,7 +94,7 @@ namespace IngameScript
                 {
                     AbortMissile();
                 }
-                _time = time;
+                _lastRunTime = time;
             }
 
             private void Handshake(string bayID, string launcherAddressString, string launcherIDString)
@@ -132,7 +132,7 @@ namespace IngameScript
                 double time;
                 if (!double.TryParse(timeString, out time))
                     return;
-                _globalTimeOffset = time - _time;
+                _globalTimeOffset = time - SystemTime;
             }
 
             private void LaunchMissile(string timeString)
