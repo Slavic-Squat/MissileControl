@@ -34,7 +34,7 @@ namespace IngameScript
 
         private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.25";
+        private const string _programVersion = "1.26";
 
         private SystemCoordinator _systemCoordinator;
         private bool _isInitialized = false;
@@ -87,7 +87,7 @@ namespace IngameScript
                 _debugStringBuilder.Append("Last Run Time: ").AppendFormat("{0:F2}ms", RuntimeInfo.LastRunTimeMs).AppendLine();
                 _debugStringBuilder.Append("Max Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Max).AppendLine();
                 _debugStringBuilder.Append("Avg Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Average).AppendLine();
-                _debugStringBuilder.Append("--------------------------------------");
+                _debugStringBuilder.AppendLine("--------------------------------------");
                 _debugStringBuilder.Append(_lastExceptionMsg);
                 _debugScreen.WriteText(_debugStringBuilder);
             }
