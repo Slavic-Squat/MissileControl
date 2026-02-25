@@ -41,7 +41,6 @@ namespace IngameScript
 
             private long _launcherID;
             private long _launcherAddress;
-            private IMyProgrammableBlock _launcherPb;
             private string _bayID;
             private StringBuilder _cmdSb = new StringBuilder();
             public SystemCoordinator()
@@ -62,9 +61,9 @@ namespace IngameScript
 
                 MissileControl = new MissileControl();
 
-                CommunicationHandlerInst.RegisterTag("TARGET_INFO", true);
+                CommunicationHandlerInst.RegisterTag("TARGET", true);
                 CommunicationHandlerInst.RegisterTag("COMMANDS", true);
-                CommandHandlerInst.RegisterCommand("HANDSHAKE", (args) => { if (args.Length > 3) Handshake(args[0], args[1], args[2], args[3]); });
+                CommandHandlerInst.RegisterCommand("HANDSHAKE", (args) => { if (args.Length > 2) Handshake(args[0], args[1], args[2]); });
                 CommandHandlerInst.RegisterCommand("UPDATE_BAY", (args) => UpdateBay());
                 CommandHandlerInst.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
                 CommandHandlerInst.RegisterCommand("LAUNCH", (args) => { if (args.Length > 0) LaunchMissile(args[0]); });
@@ -98,12 +97,8 @@ namespace IngameScript
                 _time = time;
             }
 
-            private void Handshake(string launcherPbIDStr, string bayID, string launcherAddressString, string launcherIDString)
+            private void Handshake(string bayID, string launcherAddressString, string launcherIDString)
             {
-                long launcherPbID;
-                if (!long.TryParse(launcherPbIDStr, out launcherPbID)) return;
-                _launcherPb = GTS.GetBlockWithId(launcherPbID) as IMyProgrammableBlock;
-                if (_launcherPb == null) return;
                 long launcherAddress;
                 if (!long.TryParse(launcherAddressString, out launcherAddress)) return;
                 long launcherID;
@@ -113,22 +108,23 @@ namespace IngameScript
                 _bayID = bayID;
 
                 _cmdSb.Clear();
-                _cmdSb.Append("HANDSHAKE ").Append(bayID);
+                _cmdSb.Append("HANDSHAKE_BAY_").Append(bayID);
                 _cmdSb.Append(" ").Append(IGCS.Me);
                 _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileTypeStr(MissileControl.Type));
                 _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileGuidanceStr(MissileControl.GuidanceType));
                 _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissilePayloadStr(MissileControl.PayloadType));
-                _launcherPb.TryRun(_cmdSb.ToString());
+
+                CommunicationHandlerInst.SendUnicast(_cmdSb.ToString(), _launcherAddress, "COMMANDS", true);
             }
 
             private void UpdateBay()
             {
-                if (_launcherPb == null || string.IsNullOrEmpty(_bayID)) return;
+                if (string.IsNullOrEmpty(_bayID)) return;
                 _cmdSb.Clear();
-                _cmdSb.Append("UPDATE_BAY ").Append(_bayID);
+                _cmdSb.Append("UPDATE_BAY_").Append(_bayID);
                 MissileStage stage = MissileControl.GetStage();
                 _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileStageStr(stage));
-                _launcherPb.TryRun(_cmdSb.ToString());
+                CommunicationHandlerInst.SendUnicast(_cmdSb.ToString(), _launcherAddress, "COMMANDS", true);
             }
 
             private void SyncClock(string timeString)
@@ -173,7 +169,7 @@ namespace IngameScript
                 if (index > 1)
                 {
                     ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
-                    CommunicationHandlerInst.SendUnicast(bytes, _launcherAddress, "MY_MISSILE_INFO", true);
+                    CommunicationHandlerInst.SendUnicast(bytes, _launcherAddress, "MY_MISSILES", true);
                 }
 
                 index = 0;
@@ -184,16 +180,16 @@ namespace IngameScript
                 if (index > 1)
                 {
                     ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
-                    CommunicationHandlerInst.SendBroadcast(bytes, "ALL_MISSILE_INFO", false);
+                    CommunicationHandlerInst.SendBroadcast(bytes, "ALL_MISSILES", false);
                 }
             }
 
             private void Receive()
             {
-                while (CommunicationHandlerInst.HasMessage("TARGET_INFO", true))
+                while (CommunicationHandlerInst.HasMessage("TARGET", true))
                 {
                     MyIGCMessage message;
-                    if (CommunicationHandlerInst.TryRetrieveMessage("TARGET_INFO", true, out message))
+                    if (CommunicationHandlerInst.TryRetrieveMessage("TARGET", true, out message))
                     {
                         ImmutableArray<byte> bytes = message.As<ImmutableArray<byte>>();
                         int index = 0;

@@ -34,7 +34,7 @@ namespace IngameScript
 
         private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.22";
+        private const string _programVersion = "1.23";
 
         private SystemCoordinator _systemCoordinator;
         private bool _isInitialized = false;
@@ -94,10 +94,10 @@ namespace IngameScript
             {
                 CommandHandlerInst.RunCommands(argument);
             }
-            CommunicationHandlerInst.Receive();
 
             if (_isInitialized && (updateSource & (UpdateType.Update1 | UpdateType.Update10 | UpdateType.Update100)) != 0)
             {
+                CommunicationHandlerInst.Receive();
                 _systemCoordinator.Run(SystemTime);
             }
 
