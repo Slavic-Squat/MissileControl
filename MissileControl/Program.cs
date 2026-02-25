@@ -34,7 +34,7 @@ namespace IngameScript
 
         private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.24";
+        private const string _programVersion = "1.25";
 
         private SystemCoordinator _systemCoordinator;
         private bool _isInitialized = false;

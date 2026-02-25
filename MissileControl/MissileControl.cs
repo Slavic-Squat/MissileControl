@@ -363,7 +363,7 @@ namespace IngameScript
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
 
-                            MyDetectedEntityInfo detection = _proxySensor.Raycast(_proxySensorRange * referenceOrientation.Forward + missilePos);
+                            MyDetectedEntityInfo detection = _proxySensor.Raycast(_proxySensorRange);
 
                             if (!detection.IsEmpty() && detection.EntityId == _target.EntityID)
                             {
@@ -415,21 +415,12 @@ namespace IngameScript
                     gyro.Yaw = momentGyro.Y;
                 }
 
-
-                double alignment = Vector3D.Dot(vectorToAlign, referenceOrientation.Forward);
                 Vector3D desiredThrustVector = accelVector * _missileMass;
                 foreach (var thrusterGroup in _thrusterGroups)
                 {
-                    if (alignment > 0.9f)
-                    {
-                        double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
-                        if (value < 0) value = 0;
-                        thrusterGroup.ThrustOverride = (float)value;
-                    }
-                    else
-                    {
-                        thrusterGroup.ThrustOverride = 0;
-                    }
+                    double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
+                    if (value < 0) value = 0;
+                    thrusterGroup.ThrustOverride = (float)value;
                 }
             }
 
