@@ -405,16 +405,12 @@ namespace IngameScript
                     gyro.Roll = momentGyro.Z;
                 }
 
-                double alignment = Vector3D.Dot(vectorToAlignLocal, Vector3D.Forward);
-                if (alignment > 0f)
+                Vector3D desiredThrustVector = accelVector * _missileMass;
+                foreach (var thrusterGroup in _thrusterGroups)
                 {
-                    Vector3D desiredThrustVector = accelVector * _missileMass;
-                    foreach (var thrusterGroup in _thrusterGroups)
-                    {
-                        double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
-                        if (value < 0) value = 0;
-                        thrusterGroup.ThrustOverride = (float)value;
-                    }
+                    double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
+                    if (value < 0) value = 0;
+                    thrusterGroup.ThrustOverride = (float)value;
                 }
             }
 
