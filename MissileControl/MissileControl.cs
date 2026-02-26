@@ -134,25 +134,25 @@ namespace IngameScript
             {
                 GetBlocks();
 
-                _type = MissileEnumHelper.GetMissileType(Config.Get("Config", "Type").ToString(MissileEnumHelper.GetMissileTypeStr(MissileType.Unknown)));
+                _type = MissileEnumHelper.GetMissileType(Config.Get("Config", "Type").ToString(MissileEnumHelper.GetMissileTypeStr(MissileType.AntiShip)));
                 Config.Set("Config", "Type", MissileEnumHelper.GetMissileTypeStr(_type));
 
-                _guidanceType = MissileEnumHelper.GetMissileGuidanceType(Config.Get("Config", "GuidanceType").ToString(MissileEnumHelper.GetMissileGuidanceStr(MissileGuidanceType.Unknown)));
+                _guidanceType = MissileEnumHelper.GetMissileGuidanceType(Config.Get("Config", "GuidanceType").ToString(MissileEnumHelper.GetMissileGuidanceStr(MissileGuidanceType.MCLOS)));
                 Config.Set("Config", "GuidanceType", MissileEnumHelper.GetMissileGuidanceStr(_guidanceType));
 
-                _payloadType = MissileEnumHelper.GetMissilePayload(Config.Get("Config", "Payload").ToString(MissileEnumHelper.GetMissilePayloadStr(MissilePayload.Unknown)));
+                _payloadType = MissileEnumHelper.GetMissilePayload(Config.Get("Config", "Payload").ToString(MissileEnumHelper.GetMissilePayloadStr(MissilePayload.HE)));
                 Config.Set("Config", "Payload", MissileEnumHelper.GetMissilePayloadStr(_payloadType));
 
                 _missileMass = Config.Get("Config", "Mass").ToSingle(10000);
                 Config.Set("Config", "Mass", _missileMass);
 
-                _maxSpeed = Config.Get("Config", "MaxSpeed").ToSingle(100);
+                _maxSpeed = Config.Get("Config", "MaxSpeed").ToSingle(200);
                 Config.Set("Config", "MaxSpeed", _maxSpeed);
 
-                _m = Config.Get("Config", "M").ToSingle(0.35f);
+                _m = Config.Get("Config", "M").ToSingle(2);
                 Config.Set("Config", "M", _m);
 
-                _n = Config.Get("Config", "N").ToSingle(5f);
+                _n = Config.Get("Config", "N").ToSingle(3.5f);
                 Config.Set("Config", "N", _n);
 
                 _kp = Config.Get("Config", "Kp").ToSingle(2.5f);
@@ -171,11 +171,13 @@ namespace IngameScript
 
                 _dismountDirection = MiscEnumHelper.GetDirection(Config.Get("Config", "DismountDirection").ToString("UP"));
                 Config.Set("Config", "DismountDirection", MiscEnumHelper.GetDirectionStr(_dismountDirection));
-                _dismountPeriod = Config.Get("Config", "DismountPeriod").ToDouble(0);
+                _dismountPeriod = Config.Get("Config", "DismountPeriod").ToDouble(1);
                 Config.Set("Config", "DismountPeriod", _dismountPeriod);
 
                 _proxySensorRange = Config.Get("Config", "ProxySensorRange").ToSingle(5);
                 Config.Set("Config", "ProxySensorRange", _proxySensorRange);
+
+                MePb.CustomData = Config.ToString();
 
                 MatrixD referenceOrientation = SystemCoordinator.ReferenceWorldMatrix.GetOrientation();
 
@@ -249,9 +251,6 @@ namespace IngameScript
                         thruster.ThrusterBlock.Enabled = false;
                     }
                 }
-                
-                Config.Set("Config", "Stage", MissileEnumHelper.GetMissileStageStr(Stage));
-                MePb.CustomData = Config.ToString();
             }
 
             public void Run(double time)
@@ -381,27 +380,17 @@ namespace IngameScript
                 }
 
                 Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(referenceOrientation));
-                double dot = Vector3D.Dot(Vector3D.Forward, vectorToAlignLocal);
-                double epsilon = 1e-6;
-                Vector3D rotationVector;
-                if (dot <= -1 + epsilon)
-                {
-                    rotationVector = Vector3D.Right;
-                }
-                else if (dot >= 1 - epsilon)
-                {
-                    rotationVector = Vector3D.Zero;
-                }
-                else
-                {
-                    rotationVector = Vector3D.Cross(Vector3D.Forward, vectorToAlignLocal);
-                }
-                double rotationAngle = Math.Acos(MathHelper.Clamp(dot, -1, 1));
-                Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationVector, (float)rotationAngle);
-                MatrixD alignedMatrixLocal = MatrixD.CreateFromQuaternion(quaternion);
+                MatrixD alignedLocal = MatrixD.Identity;
+                Vector3D alignedBackward = Vector3D.Normalize(-vectorToAlignLocal);
+                Vector3D alignedRight = Vector3D.Normalize(Vector3D.Cross(Vector3D.Up, alignedBackward));
+                Vector3D alignedUp = Vector3D.Normalize(Vector3D.Cross(alignedBackward, alignedRight));
+                
+                alignedLocal.Right = alignedRight;
+                alignedLocal.Up = alignedUp;
+                alignedLocal.Backward = alignedBackward;
 
-                double yawError = Math.Atan2(-alignedMatrixLocal.M13, alignedMatrixLocal.M11);
-                double pitchError = Math.Atan2(-alignedMatrixLocal.M32, alignedMatrixLocal.M22);
+                double yawError = Math.Atan2(-alignedLocal.M13, alignedLocal.M11);
+                double pitchError = Math.Atan2(-alignedLocal.M32, alignedLocal.M22);
                 float yawCorrection = _yawController.Run((float)yawError, (float)timeDelta);
                 float pitchCorrection = _pitchController.Run((float)pitchError, (float)timeDelta);
 
@@ -413,14 +402,19 @@ namespace IngameScript
                     Vector3 momentGyro = Vector3D.TransformNormal(momentWorld, MatrixD.Transpose(gyro.GyroBlock.WorldMatrix.GetOrientation()));
                     gyro.Pitch = momentGyro.X;
                     gyro.Yaw = momentGyro.Y;
+                    gyro.Roll = momentGyro.Z;
                 }
 
-                Vector3D desiredThrustVector = accelVector * _missileMass;
-                foreach (var thrusterGroup in _thrusterGroups)
+                double alignment = Vector3D.Dot(vectorToAlignLocal, Vector3D.Forward);
+                if (alignment > 0f)
                 {
-                    double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
-                    if (value < 0) value = 0;
-                    thrusterGroup.ThrustOverride = (float)value;
+                    Vector3D desiredThrustVector = accelVector * _missileMass;
+                    foreach (var thrusterGroup in _thrusterGroups)
+                    {
+                        double value = Vector3D.Dot(desiredThrustVector, thrusterGroup.Vector);
+                        if (value < 0) value = 0;
+                        thrusterGroup.ThrustOverride = (float)value;
+                    }
                 }
             }
 

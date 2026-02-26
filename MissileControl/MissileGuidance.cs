@@ -52,12 +52,11 @@ namespace IngameScript
                 Vector3D lateralVelUnit = lateralSpeed != 0 ? lateralVel / lateralSpeed : Vector3D.Zero;
                 double alignment = Vector3D.Dot(relVelUnit, rangeUnit);
 
-                double axialSpeedFactor = Math.Max(axialSpeed, 1);
-                double distFactor = Math.Max(dist, 1);
-                double lateralSpeedFactor = lateralSpeed;
+                double axialSpeedFactor = Math.Max(0, 1 - axialSpeed / MaxSpeed);
+                double distFactor = Math.Min(dist / 5000, 1);
                 
-                Vector3D axialAccel = M * distFactor / axialSpeedFactor * (2 + alignment) * rangeUnit;
-                Vector3D lateralAccel = N * lateralSpeedFactor / distFactor * axialSpeedFactor * lateralVelUnit;
+                Vector3D axialAccel = M * MaxAccel * distFactor * axialSpeedFactor * (2 + alignment) * rangeUnit;
+                Vector3D lateralAccel = N * lateralSpeed / dist * axialSpeed * lateralVelUnit;
                 Vector3D totalAccel = axialAccel + lateralAccel;
                 double totalAccelMag = totalAccel.Length();
 
