@@ -298,11 +298,11 @@ namespace IngameScript
                         {
                             if (time - _launchTime < _dismountPeriod)
                             {
-                                accelVector = _dismountVector;
+                                accelVector = Vector3D.TransformNormal(_dismountVector, referenceOrientation.GetOrientation());
                             }
                             else
                             {
-                                accelVector = _launchVector;
+                                accelVector = Vector3D.TransformNormal(_launchVector, referenceOrientation.GetOrientation());
                             }
 
                             double accelMag = accelVector.Length();
