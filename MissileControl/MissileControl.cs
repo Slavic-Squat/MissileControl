@@ -54,9 +54,9 @@ namespace IngameScript
             private MissileGuidanceType _guidanceType;
             private MissilePayload _payloadType;
             private MissileStage _stage = MissileStage.Building;
-            private Direction _launchDirection;
+            private Vector3D _launchVector;
             private double _launchPeriod = 3;
-            private Direction _dismountDirection;
+            private Vector3D _dismountVector;
             private double _dismountPeriod = 0;
             private float _proxySensorRange = 5;
 
@@ -164,13 +164,13 @@ namespace IngameScript
                 _kd = Config.Get("Config", "Kd").ToSingle(0f);
                 Config.Set("Config", "Kd", _kd);
 
-                _launchDirection = MiscEnumHelper.GetDirection(Config.Get("Config", "LaunchDirection").ToString("FORWARD"));
-                Config.Set("Config", "LaunchDirection", MiscEnumHelper.GetDirectionStr(_launchDirection));
+                _launchVector = VectorFromStr(Config.Get("Config", "LaunchVector").ToString("<0, 0, 50>"));
+                Config.Set("Config", "LaunchVector", VectorToStr(_launchVector));
                 _launchPeriod = Config.Get("Config", "LaunchPeriod").ToDouble(3);
                 Config.Set("Config", "LaunchPeriod", _launchPeriod);
 
-                _dismountDirection = MiscEnumHelper.GetDirection(Config.Get("Config", "DismountDirection").ToString("UP"));
-                Config.Set("Config", "DismountDirection", MiscEnumHelper.GetDirectionStr(_dismountDirection));
+                _dismountVector = VectorFromStr(Config.Get("Config", "DismountVector").ToString("<0, 50, 0>"));
+                Config.Set("Config", "DismountVector", VectorToStr(_dismountVector));
                 _dismountPeriod = Config.Get("Config", "DismountPeriod").ToDouble(1);
                 Config.Set("Config", "DismountPeriod", _dismountPeriod);
 
@@ -296,25 +296,39 @@ namespace IngameScript
                 {
                     case MissileStage.Launching:
                         {
-                            Vector3D accelDir;
                             if (time - _launchTime < _dismountPeriod)
                             {
-                                accelDir = DirectionToVector(_dismountDirection, referenceOrientation);
+                                accelVector = _dismountVector;
                             }
                             else
                             {
-                                accelDir = DirectionToVector(_launchDirection, referenceOrientation);
+                                accelVector = _launchVector;
+                            }
+
+                            double accelMag = accelVector.Length();
+                            Vector3D accelDir;
+                            if (accelMag < 0)
+                            {
+                                accelDir = Vector3D.Zero;
+                            }
+                            else
+                            {
+                                accelDir = accelVector / accelMag;
                             }
 
                             Vector3D velToMaintain = _velAtLaunch - Vector3D.Dot(_velAtLaunch, accelDir) * accelDir;
                             double freeSpeed = Math.Sqrt(_maxSpeed * _maxSpeed - velToMaintain.LengthSquared());
-                            double accelMag = freeSpeed - Vector3D.Dot(missileVel, accelDir);
-                            accelVector = accelMag * accelDir;
+
+                            if (freeSpeed < 0)
+                            {
+                                accelVector = Vector3D.Zero;
+                            }
 
                             if (gravVector.LengthSquared() > 0)
                             {
-                                Vector3D gravCompensation = -gravVector - Vector3D.Dot(-gravVector, accelDir) * accelDir;
-                                accelVector += gravCompensation;
+                                //Vector3D gravComp = -gravVector - Vector3D.Dot(-gravVector, accelDir) * accelDir;
+                                Vector3D gravComp = -gravVector;
+                                accelVector += gravComp;
                             }
                             vectorToAlign = referenceOrientation.Forward;
 
@@ -331,10 +345,11 @@ namespace IngameScript
                             accelVector = _missileGuidance.CalculateTotalAccel(estimatedTarget.Position, estimatedTarget.Velocity, missilePos, missileVel);
                             if (gravVector.LengthSquared() > 0)
                             {
-                                double accelMag = accelVector.Length();
-                                Vector3D accelUnit = accelMag != 0 ? accelVector / accelMag : Vector3D.Zero;
-                                Vector3D gravCompensation = -gravVector - Vector3D.Dot(-gravVector, accelUnit) * accelUnit;
-                                accelVector += gravCompensation;
+                                //double accelMag = accelVector.Length();
+                                //Vector3D accelDir = accelMag != 0 ? accelVector / accelMag : Vector3D.Zero;
+                                //Vector3D gravComp = -gravVector - Vector3D.Dot(-gravVector, accelDir) * accelDir;
+                                Vector3D gravComp = -gravVector;
+                                accelVector += gravComp;
                             }
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
@@ -354,10 +369,11 @@ namespace IngameScript
                             accelVector = _missileGuidance.CalculateTotalAccel(estimatedTarget.Position, estimatedTarget.Velocity, missilePos, missileVel);
                             if (gravVector.LengthSquared() > 0)
                             {
-                                double accelMag = accelVector.Length();
-                                Vector3D accelUnit = accelMag != 0 ? accelVector / accelMag : Vector3D.Zero;
-                                Vector3D gravCompensation = -gravVector - Vector3D.Dot(-gravVector, accelUnit) * accelUnit;
-                                accelVector += gravCompensation;
+                                //double accelMag = accelVector.Length();
+                                //Vector3D accelDir = accelMag != 0 ? accelVector / accelMag : Vector3D.Zero;
+                                //Vector3D gravComp = -gravVector - Vector3D.Dot(-gravVector, accelDir) * accelDir;
+                                Vector3D gravComp = -gravVector;
+                                accelVector += gravComp;
                             }
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
@@ -492,6 +508,23 @@ namespace IngameScript
                     default:
                         return referenceOrientation.Forward;
                 }
+            }
+
+            private Vector3D VectorFromStr(string str)
+            {
+                string[] parts = str.Trim(' ', '<', '>').Split(',');
+                if (parts.Length != 3) return Vector3D.Zero;
+                double x, y, z;
+                if (!double.TryParse(parts[0], out x) || !double.TryParse(parts[1], out y) || !double.TryParse(parts[2], out z))
+                {
+                    return Vector3D.Zero;
+                }
+                return new Vector3D(x, y, z);
+            }
+
+            private string VectorToStr(Vector3D vec)
+            {
+                return string.Format("<{0}, {1}, {2}>", vec.X, vec.Y, vec.Z);
             }
 
             public void Launch()
