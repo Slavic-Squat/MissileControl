@@ -164,7 +164,7 @@ namespace IngameScript
                 _kd = Config.Get("Config", "Kd").ToSingle(0f);
                 Config.Set("Config", "Kd", _kd);
 
-                _launchVector = VectorFromStr(Config.Get("Config", "LaunchVector").ToString("<0, 0, 50>"));
+                _launchVector = VectorFromStr(Config.Get("Config", "LaunchVector").ToString("<0, 0, -50>"));
                 Config.Set("Config", "LaunchVector", VectorToStr(_launchVector));
                 _launchPeriod = Config.Get("Config", "LaunchPeriod").ToDouble(3);
                 Config.Set("Config", "LaunchPeriod", _launchPeriod);
@@ -554,6 +554,7 @@ namespace IngameScript
 
             public void UpdateTarget(EntityInfo target)
             {
+                if (!target.IsValid || target.TimeRecorded <= _lastTarget.TimeRecorded) return;
                 _lastTarget = _target;
                 _target = target;
             }
