@@ -56,9 +56,6 @@ namespace IngameScript
                     throw new Exception("missile controller not found!");
                 }
 
-                Config.Set("Config", "MissileAddress", IGCS.Me);
-                MePb.CustomData = Config.ToString();
-
                 MissileControl = new MissileControl();
 
                 CommunicationHandlerInst.RegisterTag("TARGET", true);
