@@ -50,8 +50,6 @@ namespace IngameScript
             private float _maxRadialAccel;
             private float _maxAccel;
 
-            private MissileType _type;
-            private MissileGuidanceType _guidanceType;
             private MissilePayload _payloadType;
             private MissileStage _stage = MissileStage.Building;
             private Vector3D _launchVector;
@@ -65,8 +63,6 @@ namespace IngameScript
             private double _launchTime;
             private Vector3D _velAtLaunch;
             public MissileStage Stage => GetStage();
-            public MissileType Type => _type;
-            public MissileGuidanceType GuidanceType => _guidanceType;
             public MissilePayload PayloadType => _payloadType;
             public EntityInfo Target => _target;
 
@@ -133,12 +129,6 @@ namespace IngameScript
             private void Init()
             {
                 GetBlocks();
-
-                _type = MissileEnumHelper.GetMissileType(Config.Get("Config", "Type").ToString(MissileEnumHelper.GetMissileTypeStr(MissileType.AntiShip)));
-                Config.Set("Config", "Type", MissileEnumHelper.GetMissileTypeStr(_type));
-
-                _guidanceType = MissileEnumHelper.GetMissileGuidanceType(Config.Get("Config", "GuidanceType").ToString(MissileEnumHelper.GetMissileGuidanceStr(MissileGuidanceType.MCLOS)));
-                Config.Set("Config", "GuidanceType", MissileEnumHelper.GetMissileGuidanceStr(_guidanceType));
 
                 _payloadType = MissileEnumHelper.GetMissilePayload(Config.Get("Config", "Payload").ToString(MissileEnumHelper.GetMissilePayloadStr(MissilePayload.HE)));
                 Config.Set("Config", "Payload", MissileEnumHelper.GetMissilePayloadStr(_payloadType));
@@ -554,9 +544,26 @@ namespace IngameScript
 
             public void UpdateTarget(EntityInfo target)
             {
-                if (!target.IsValid || target.TimeRecorded <= _lastTarget.TimeRecorded) return;
-                _lastTarget = _target;
-                _target = target;
+                if (!target.IsValid)
+                {
+                    return;
+                }
+                if (_target.EntityID != target.EntityID)
+                {
+                    _lastTarget = default(EntityInfo);
+                    _target = target;
+                }
+                else if (target.TimeRecorded > _target.TimeRecorded)
+                {
+                    _lastTarget = _target;
+                    _target = target;
+                }
+            }
+
+            public void ForgetTarget()
+            {
+                _target = default(EntityInfo);
+                _lastTarget = default(EntityInfo);
             }
 
             private EntityInfo EstimateTargetKinematics(EntityInfo currentTarget, EntityInfo lastTarget)
@@ -581,6 +588,7 @@ namespace IngameScript
 
             public void Abort()
             {
+                ForgetTarget();
                 if (Stage > MissileStage.Launching && (SystemTime - _launchTime) > 10)
                 {
                     foreach (IMyWarhead warhead in _payload)

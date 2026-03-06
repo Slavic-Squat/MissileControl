@@ -110,8 +110,6 @@ namespace IngameScript
                 _cmdSb.Clear();
                 _cmdSb.Append("HANDSHAKE_BAY_").Append(bayID);
                 _cmdSb.Append(" ").Append(IGCS.Me);
-                _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileTypeStr(MissileControl.Type));
-                _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissileGuidanceStr(MissileControl.GuidanceType));
                 _cmdSb.Append(" ").Append(MissileEnumHelper.GetMissilePayloadStr(MissileControl.PayloadType));
 
                 CommunicationHandlerInst.SendUnicast(_cmdSb.ToString(), _launcherAddress, "COMMANDS", true);
@@ -154,10 +152,8 @@ namespace IngameScript
 
                 EntityInfo target = MissileControl.Target;
                 MissileStage stage = MissileControl.GetStage();
-                MissileType type = MissileControl.Type;
-                MissileGuidanceType guidanceType = MissileControl.GuidanceType;
                 MissilePayload payload = MissileControl.PayloadType;
-                MissileInfo missile = new MissileInfo(_launcherID, IGCS.Me, target.EntityID, stage, type, guidanceType, payload);
+                MissileInfo missile = new MissileInfo(_launcherID, IGCS.Me, target.EntityID, stage, payload);
                 MissileInfo missileLite = new MissileInfo(_launcherID);
                 EntityInfo entity = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missile);
                 EntityInfo entityLite = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileLite);

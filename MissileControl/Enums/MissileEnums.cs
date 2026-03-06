@@ -22,17 +22,9 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum MissileType : byte
-        {
-            Unknown, AntiShip, AntiMissile, Cluster
-        }
-        public enum MissileGuidanceType : byte
-        {
-            Unknown, MCLOS,
-        }
         public enum MissilePayload : byte
         {
-            Unknown, HE, Nuclear, Kinectic
+            Unknown, HE, Nuclear, Kinectic, ClusterHE, ClusterNuclear
         }
         public enum MissileStage : byte
         {
@@ -40,45 +32,6 @@ namespace IngameScript
         }
         public static class MissileEnumHelper
         {
-            public static MissileType GetMissileType(string typeStr)
-            {
-                switch (typeStr.ToUpper())
-                {
-                    case "ANTI-SHIP": return MissileType.AntiShip;
-                    case "ANTI-MISL": return MissileType.AntiMissile;
-                    case "CLUSTER": return MissileType.Cluster;
-                    default: return MissileType.Unknown;
-                }
-            }
-            public static string GetMissileTypeStr(MissileType type)
-            {
-                switch (type)
-                {
-                    case MissileType.Unknown: return "N/A";
-                    case MissileType.AntiShip: return "ANTI-SHIP";
-                    case MissileType.AntiMissile: return "ANTI-MISL";
-                    case MissileType.Cluster: return "CLUSTER";
-                    default: return "N/A";
-                }
-            }
-
-            public static MissileGuidanceType GetMissileGuidanceType(string typeStr)
-            {
-                switch (typeStr.ToUpper())
-                {
-                    case "MCLOS": return MissileGuidanceType.MCLOS;
-                    default: return MissileGuidanceType.Unknown;
-                }
-            }
-            public static string GetMissileGuidanceStr(MissileGuidanceType type)
-            {
-                switch (type)
-                {
-                    case MissileGuidanceType.Unknown: return "N/A";
-                    case MissileGuidanceType.MCLOS: return "MCLOS";
-                    default: return "N/A";
-                }
-            }
 
             public static MissilePayload GetMissilePayload(string payloadStr)
             {
@@ -87,6 +40,8 @@ namespace IngameScript
                     case "HE": return MissilePayload.HE;
                     case "NUKE": return MissilePayload.Nuclear;
                     case "KINECTIC": return MissilePayload.Kinectic;
+                    case "CLUSTER-HE": return MissilePayload.ClusterHE;
+                    case "CLUSTER-NUKE": return MissilePayload.ClusterNuclear;
                     default: return MissilePayload.Unknown;
                 }
             }
@@ -98,7 +53,23 @@ namespace IngameScript
                     case MissilePayload.HE: return "HE";
                     case MissilePayload.Nuclear: return "NUKE";
                     case MissilePayload.Kinectic: return "KINECTIC";
+                    case MissilePayload.ClusterHE: return "CLUSTER-HE";
+                    case MissilePayload.ClusterNuclear: return "CLUSTER-NUKE";
                     default: return "N/A";
+                }
+            }
+
+            public static MissileStage GetMissileStage(string stageStr)
+            {
+                switch (stageStr.ToUpper())
+                {
+                    case "BUILDING": return MissileStage.Building;
+                    case "FUELING": return MissileStage.Fueling;
+                    case "IDLE": return MissileStage.Idle;
+                    case "LAUNCHING": return MissileStage.Launching;
+                    case "FLYING": return MissileStage.Flying;
+                    case "INTERCEPTION": return MissileStage.Interception;
+                    default: return MissileStage.Unknown;
                 }
             }
 
