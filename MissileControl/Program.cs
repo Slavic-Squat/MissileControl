@@ -34,7 +34,7 @@ namespace IngameScript
 
         private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.34";
+        private const string _programVersion = "1.35";
 
         private SystemCoordinator _systemCoordinator;
         private bool _isInitialized = false;
@@ -65,8 +65,6 @@ namespace IngameScript
 
             CommandHandlerInst = new CommandHandler();
             CommandHandlerInst.RegisterCommand("INIT", (args) => Init());
-
-            Me.CubeGrid.CustomName = "Missile";
         }
 
         public void Save()
@@ -87,7 +85,7 @@ namespace IngameScript
                 _debugStringBuilder.Append("Last Run Time: ").AppendFormat("{0:F2}ms", RuntimeInfo.LastRunTimeMs).AppendLine();
                 _debugStringBuilder.Append("Max Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Max).AppendLine();
                 _debugStringBuilder.Append("Avg Run Time: ").AppendFormat("{0:F2}ms", _runTimeInfo.Average).AppendLine();
-                _debugStringBuilder.AppendLine("--------------------------------------");
+                _debugStringBuilder.AppendLine("--------------------");
                 _debugStringBuilder.Append(_lastExceptionMsg);
                 _debugScreen.WriteText(_debugStringBuilder);
             }
@@ -145,12 +143,12 @@ namespace IngameScript
                 Config.Clear();
                 CommunicationHandlerInst.Reset();
                 _lastExceptionMsg = ex.Message;
+                _debugScreen.WriteText(_lastExceptionMsg, true);
 
                 CommandHandlerInst.RegisterCommand("INIT", (args) => Init());
 
                 return;
             }
-
             Me.CustomData = Config.ToString();
             _isInitialized = true;
         }

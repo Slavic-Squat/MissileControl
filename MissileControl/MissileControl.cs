@@ -34,6 +34,8 @@ namespace IngameScript
             private List<Battery> _batteries = new List<Battery>();
             private IMyRemoteControl _remoteCtrl;
             private IMyCameraBlock _proxySensor;
+            private IMyShipConnector _connector;
+            private IMyShipMergeBlock _mergeBlock;
 
             private MissileGuidance _missileGuidance;
             private PIDControl _pitchController;
@@ -123,6 +125,18 @@ namespace IngameScript
                 if (_proxySensor == null)
                 {
                     throw new Exception("No proxy sensor found!");
+                }
+
+                _mergeBlock = AllBlocks.FirstOrDefault(b => b is IMyShipMergeBlock) as IMyShipMergeBlock;
+                if (_mergeBlock == null)
+                {
+                    throw new Exception("No merge block found!");
+                }
+
+                _connector = AllBlocks.FirstOrDefault(b => b is IMyShipConnector) as IMyShipConnector;
+                if (_connector == null)
+                {
+                    throw new Exception("No connector found!");
                 }
             }
 
@@ -325,6 +339,7 @@ namespace IngameScript
                             if (time - _launchTime > _launchPeriod)
                             {
                                 _stage = MissileStage.Flying;
+                                MePb.CubeGrid.CustomName = "MISSILE";
                             }
 
                             break;
@@ -537,6 +552,8 @@ namespace IngameScript
                     }
                 }
                 _gyros.ForEach(g => g.GyroBlock.Enabled = true);
+                _connector.Disconnect();
+                _mergeBlock.Enabled = false;
 
                 _launchTime = SystemTime;
                 _velAtLaunch = SystemCoordinator.ReferenceVelocity;
@@ -614,11 +631,13 @@ namespace IngameScript
                             if (_payload.Any(w => !w.IsFunctional)) break;
                             if (!_antenna.IsFunctional) break;
                             if (!_proxySensor.IsFunctional) break;
+                            if (!_connector.IsFunctional) break;
+                            if (!_mergeBlock.IsFunctional) break;
                             _stage = MissileStage.Fueling;
                             break;
                         case MissileStage.Fueling:
-                            if (_h2Tanks.Any(t => !t.IsFull)) break;
-                            if (_batteries.Any(b => !b.IsFull)) break;
+                            if (_h2Tanks.Average(t => t.FillPercentage) < 75f) break;
+                            if (_batteries.Average(t => t.ChargePercentage) < 30f) break;
                             _stage = MissileStage.Idle;
                             break;
                     }
