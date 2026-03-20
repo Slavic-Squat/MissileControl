@@ -59,6 +59,7 @@ namespace IngameScript
             private Vector3D _dismountVector;
             private double _dismountPeriod = 0;
             private float _proxySensorRange = 5;
+            private float _interceptionThreshold = 3;
 
             private EntityInfo _target;
             private EntityInfo _lastTarget;
@@ -180,6 +181,9 @@ namespace IngameScript
 
                 _proxySensorRange = Config.Get("Config", "ProxySensorRange").ToSingle(5);
                 Config.Set("Config", "ProxySensorRange", _proxySensorRange);
+
+                _interceptionThreshold = Config.Get("Config", "InterceptionThreshold").ToSingle(3);
+                Config.Set("Config", "InterceptionThreshold", _interceptionThreshold);
 
                 MePb.CustomData = Config.ToString();
 
@@ -359,7 +363,7 @@ namespace IngameScript
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
 
-                            if (timeToTarget > 0 && timeToTarget < 10)
+                            if (timeToTarget > 0 && timeToTarget < _interceptionThreshold)
                             {
                                 _stage = MissileStage.Interception;
                                 _payload.ForEach(w => w.IsArmed = true);
