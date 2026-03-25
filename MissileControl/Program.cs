@@ -34,7 +34,7 @@ namespace IngameScript
 
         private static List<IMyTerminalBlock> _allBlocks = new List<IMyTerminalBlock>();
         private const string _programName = "MissileControl";
-        private const string _programVersion = "1.37";
+        private const string _programVersion = "1.38";
 
         private SystemCoordinator _systemCoordinator;
         private bool _isInitialized = false;
@@ -126,9 +126,6 @@ namespace IngameScript
             long secureBroadcastPIN = Config.Get("Config", "SecureBroadcastPIN").ToInt64(123456);
             Config.Set("Config", "SecureBroadcastPIN", secureBroadcastPIN);
 
-            Runtime.UpdateFrequency = GetUpdateFrequency(Config.Get("Config", "UpdateFrequency").ToString("NONE"));
-            Config.Set("Config", "UpdateFrequency", GetUpdateFrequencyStr(Runtime.UpdateFrequency));
-
             Me.CustomData = Config.ToString();
 
             CommunicationHandlerInst = new CommunicationHandler(secureBroadcastPIN);
@@ -155,6 +152,7 @@ namespace IngameScript
                 return;
             }
 
+            Runtime.UpdateFrequency = UpdateFrequency.None;
             _isInitialized = true;
         }
 
@@ -171,40 +169,6 @@ namespace IngameScript
                     string command = msg.As<string>();
                     CommandHandlerInst.RunCommands(command);
                 }
-            }
-        }
-
-        private UpdateFrequency GetUpdateFrequency(string frequencyStr)
-        {
-            switch (frequencyStr.ToUpper())
-            {
-                case "NONE":
-                    return UpdateFrequency.None;
-                case "UPDATE1":
-                    return UpdateFrequency.Update1;
-                case "UPDATE10":
-                    return UpdateFrequency.Update10;
-                case "UPDATE100":
-                    return UpdateFrequency.Update100;
-                default:
-                    return UpdateFrequency.None;
-            }
-        }
-
-        private string GetUpdateFrequencyStr(UpdateFrequency frequency)
-        {
-            switch (frequency)
-            {
-                case UpdateFrequency.None:
-                    return "NONE";
-                case UpdateFrequency.Update1:
-                    return "UPDATE1";
-                case UpdateFrequency.Update10:
-                    return "UPDATE10";
-                case UpdateFrequency.Update100:
-                    return "UPDATE100";
-                default:
-                    return "NONE";
             }
         }
     }
