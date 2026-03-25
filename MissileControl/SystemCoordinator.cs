@@ -59,7 +59,6 @@ namespace IngameScript
                 MissileControl = new MissileControl();
 
                 CommunicationHandlerInst.RegisterTag("TARGET", true);
-                CommunicationHandlerInst.RegisterTag("COMMANDS", true);
                 CommandHandlerInst.RegisterCommand("HANDSHAKE", (args) => { if (args.Length > 2) Handshake(args[0], args[1], args[2]); });
                 CommandHandlerInst.RegisterCommand("UPDATE_BAY", (args) => UpdateBay());
                 CommandHandlerInst.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
@@ -194,17 +193,6 @@ namespace IngameScript
                             continue;
                         }
                         MissileControl.UpdateTarget(target);
-                    }
-                }
-
-                while (CommunicationHandlerInst.HasMessage("COMMANDS", true))
-                {
-                    MyIGCMessage msg;
-                    if (CommunicationHandlerInst.TryRetrieveMessage("COMMANDS", true, out msg))
-                    {
-                        if (msg.Source != _launcherAddress) continue;
-                        string command = msg.As<string>();
-                        CommandHandlerInst.RunCommands(command);
                     }
                 }
             }

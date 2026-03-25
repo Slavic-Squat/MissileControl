@@ -90,7 +90,7 @@ namespace IngameScript
                 IGCS.SendUnicastMessage(targetAddress, tag, message);
             }
 
-            public void RegisterBroadcastListener(string tag, bool secure)
+            public void RegisterBroadcastListener(string tag, bool secure, string callback = null)
             {
                 string tagOriginal = tag;
                 if (secure)
@@ -98,6 +98,10 @@ namespace IngameScript
                     tag = $"{_secureBroadcastPIN}_{tag}";
                 }
                 var listener = IGCS.RegisterBroadcastListener(tag);
+                if (callback != null)
+                {
+                    listener.SetMessageCallback(callback);
+                }
                 _broadcastListeners.Add(listener);
                 RegisterTag(tagOriginal, secure);
             }
@@ -167,6 +171,11 @@ namespace IngameScript
             public bool CanReach(long targetAddress)
             {
                 return IGCS.IsEndpointReachable(targetAddress);
+            }
+
+            public void SetUnicastMessageCallback(string callback)
+            {
+                _unicastListener.SetMessageCallback(callback);
             }
 
             public void Reset()
