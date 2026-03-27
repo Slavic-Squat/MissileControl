@@ -397,14 +397,23 @@ namespace IngameScript
                 }
 
                 Vector3D vectorToAlignLocal = Vector3D.TransformNormal(vectorToAlign, MatrixD.Transpose(referenceOrientation));
-                MatrixD alignedLocal = MatrixD.Identity;
-                Vector3D alignedBackward = Vector3D.Normalize(-vectorToAlignLocal);
-                Vector3D alignedRight = Vector3D.Normalize(Vector3D.Cross(Vector3D.Up, alignedBackward));
-                Vector3D alignedUp = Vector3D.Normalize(Vector3D.Cross(alignedBackward, alignedRight));
-                
-                alignedLocal.Right = alignedRight;
-                alignedLocal.Up = alignedUp;
-                alignedLocal.Backward = alignedBackward;
+                double dot = Vector3D.Dot(Vector3D.Forward, vectorToAlignLocal);
+                double epsilon = 1e-6;
+                Vector3D rotationAxis;
+                if (dot <= -1 + epsilon)
+                {
+                    rotationAxis = Vector3D.Up;
+                }
+                else if (dot >= 1 - epsilon)
+                {
+                    rotationAxis = Vector3D.Zero;
+                }
+                else
+                {
+                    rotationAxis = Vector3D.Cross(Vector3D.Forward, vectorToAlignLocal).Normalized();
+                }
+                double rotationAngle = Math.Acos(MathHelper.Clamp(dot, -1, 1));
+                MatrixD alignedLocal = MatrixD.CreateFromAxisAngle(rotationAxis, rotationAngle);
 
                 double yawError = Math.Atan2(-alignedLocal.M13, alignedLocal.M11);
                 double pitchError = Math.Atan2(-alignedLocal.M32, alignedLocal.M22);
@@ -464,20 +473,20 @@ namespace IngameScript
 
                 Vector3D accelDir = accelMag == 0 ? Vector3D.Zero : accelVector / accelMag;
                 double dot = Vector3D.Dot(accelDir, currentVectorToAlign);
-                Vector3D rotationVector;
+                Vector3D rotationAxis;
                 double epsilon = 1e-6;
 
                 if (dot <= -1 + epsilon)
                 {
-                    rotationVector = Vector3D.CalculatePerpendicularVector(currentVectorToAlign);
+                    rotationAxis = Vector3D.CalculatePerpendicularVector(currentVectorToAlign);
                 }
                 else if (dot >= 1 - epsilon)
                 {
-                    rotationVector = Vector3D.Zero;
+                    rotationAxis = Vector3D.Zero;
                 }
                 else
                 {
-                    rotationVector = Vector3D.Cross(currentVectorToAlign, accelDir);
+                    rotationAxis = Vector3D.Cross(currentVectorToAlign, accelDir).Normalized();
                 }
 
                 double targetForwardAccel = currentForwardAccel < minForwardAccel ? minForwardAccel : maxForwardAccel;
@@ -486,7 +495,7 @@ namespace IngameScript
                 double targetAccelAngle = accelMag == 0 ? 0 : Math.Acos(MathHelper.Clamp(targetForwardAccel / accelMag, -1, 1));
                 double rotationAngle = -1 * (targetAccelAngle - currentAccelAngle);
 
-                Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationVector, (float)rotationAngle);
+                Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationAxis, (float)rotationAngle);
                 newVectorToAlign = Vector3D.Transform(currentVectorToAlign, quaternion);
             }
 
