@@ -54,10 +54,10 @@ namespace IngameScript
 
             private MissilePayload _payloadType;
             private MissileStage _stage = MissileStage.Building;
-            private Vector3D _launchVector;
-            private double _launchPeriod = 3;
-            private Vector3D _dismountVector;
-            private double _dismountPeriod = 0;
+            private List<Vector4D> _launchBurns = new List<Vector4D>();
+            private int _burnIndex = 0;
+            private double _burnStartTime = -1;
+            private IEnumerator<Vector3D> _launchBurnEnumerator;
             private float _proxySensorRange = 5;
             private float _interceptionThreshold = 3;
 
@@ -169,15 +169,14 @@ namespace IngameScript
                 _kd = Config.Get("Config", "Kd").ToSingle(0f);
                 Config.Set("Config", "Kd", _kd);
 
-                _launchVector = VectorFromStr(Config.Get("Config", "LaunchVector").ToString("<0, 0, -50>"));
-                Config.Set("Config", "LaunchVector", VectorToStr(_launchVector));
-                _launchPeriod = Config.Get("Config", "LaunchPeriod").ToDouble(3);
-                Config.Set("Config", "LaunchPeriod", _launchPeriod);
+                int launchBurnCount = Config.Get("Config", "LaunchBurnCount").ToInt32(1);
+                Config.Set("Config", "LaunchBurnCount", launchBurnCount);
 
-                _dismountVector = VectorFromStr(Config.Get("Config", "DismountVector").ToString("<0, 50, 0>"));
-                Config.Set("Config", "DismountVector", VectorToStr(_dismountVector));
-                _dismountPeriod = Config.Get("Config", "DismountPeriod").ToDouble(1);
-                Config.Set("Config", "DismountPeriod", _dismountPeriod);
+                for (int i = 0; i < launchBurnCount; i++)
+                {
+                    _launchBurns.Add(VectorFromStr(Config.Get("Config", "LaunchBurn" + i).ToString("<0, 0, 0, 0>")));
+                    Config.Set("Config", "LaunchBurn" + i, VectorToStr(_launchBurns[i]));
+                }
 
                 _proxySensorRange = Config.Get("Config", "ProxySensorRange").ToSingle(5);
                 Config.Set("Config", "ProxySensorRange", _proxySensorRange);
@@ -304,25 +303,24 @@ namespace IngameScript
                 {
                     case MissileStage.Launching:
                         {
-                            if (time - _launchTime < _dismountPeriod)
+                            if (_launchBurnEnumerator == null)
                             {
-                                accelVector = Vector3D.TransformNormal(_dismountVector, referenceOrientation.GetOrientation());
+                                _launchBurnEnumerator = GetLaunchBurns();
+                            }
+
+                            if (_launchBurnEnumerator.MoveNext())
+                            {
+                                accelVector = Vector3D.TransformNormal(_launchBurnEnumerator.Current, referenceOrientation.GetOrientation());
                             }
                             else
                             {
-                                accelVector = Vector3D.TransformNormal(_launchVector, referenceOrientation.GetOrientation());
+                                accelVector = Vector3D.Zero;
+                                _stage = MissileStage.Flying;
+                                MePb.CubeGrid.CustomName = "MISSILE";
                             }
 
                             double accelMag = accelVector.Length();
-                            Vector3D accelDir;
-                            if (accelMag < 0)
-                            {
-                                accelDir = Vector3D.Zero;
-                            }
-                            else
-                            {
-                                accelDir = accelVector / accelMag;
-                            }
+                            Vector3D accelDir = accelMag == 0 ? Vector3D.Zero : accelVector / accelMag;
 
                             Vector3D velToMaintain = _velAtLaunch - Vector3D.Dot(_velAtLaunch, accelDir) * accelDir;
                             double freeSpeed = Math.Sqrt(_maxSpeed * _maxSpeed - velToMaintain.LengthSquared());
@@ -339,12 +337,6 @@ namespace IngameScript
                                 accelVector += gravComp;
                             }
                             vectorToAlign = referenceOrientation.Forward;
-
-                            if (time - _launchTime > _launchPeriod)
-                            {
-                                _stage = MissileStage.Flying;
-                                MePb.CubeGrid.CustomName = "MISSILE";
-                            }
 
                             break;
                         }
@@ -519,21 +511,42 @@ namespace IngameScript
                 }
             }
 
-            private Vector3D VectorFromStr(string str)
+            private Vector4D VectorFromStr(string str)
             {
                 string[] parts = str.Trim(' ', '<', '>').Split(',');
-                if (parts.Length != 3) return Vector3D.Zero;
-                double x, y, z;
-                if (!double.TryParse(parts[0], out x) || !double.TryParse(parts[1], out y) || !double.TryParse(parts[2], out z))
+                if (parts.Length != 4) return Vector4D.Zero;
+                double x, y, z, w;
+                if (!double.TryParse(parts[0], out x) || !double.TryParse(parts[1], out y) || !double.TryParse(parts[2], out z) || !double.TryParse(parts[3], out w))
                 {
-                    return Vector3D.Zero;
+                    return Vector4D.Zero;
                 }
-                return new Vector3D(x, y, z);
+                return new Vector4D(x, y, z, w);
             }
 
-            private string VectorToStr(Vector3D vec)
+            private string VectorToStr(Vector4D vec)
             {
-                return string.Format("<{0}, {1}, {2}>", vec.X, vec.Y, vec.Z);
+                return string.Format("<{0}, {1}, {2}, {3}>", vec.X, vec.Y, vec.Z, vec.W);
+            }
+
+            private IEnumerator<Vector3D> GetLaunchBurns()
+            {
+                _burnStartTime = SystemTime;
+                _burnIndex = 0;
+                while (_burnIndex < _launchBurns.Count)
+                {
+                    Vector4D currentBurn = _launchBurns[_burnIndex];
+                    if (SystemTime - _burnStartTime > currentBurn.W)
+                    {
+                        _burnIndex++;
+                        if (_burnIndex >= _launchBurns.Count)
+                        {
+                            yield break;
+                        }
+                        _burnStartTime = SystemTime;
+                        continue;
+                    }
+                    yield return new Vector3D(currentBurn.X, currentBurn.Y, currentBurn.Z);
+                }
             }
 
             public void Launch()
