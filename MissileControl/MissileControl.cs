@@ -60,6 +60,7 @@ namespace IngameScript
             private IEnumerator<Vector3D> _launchBurnEnumerator;
             private float _proxySensorRange = 5;
             private float _interceptionThreshold = 3;
+            private float _delay = 0;
 
             private EntityInfo _target;
             private EntityInfo _lastTarget;
@@ -184,6 +185,9 @@ namespace IngameScript
                 _interceptionThreshold = Config.Get("Config", "InterceptionThreshold").ToSingle(3);
                 Config.Set("Config", "InterceptionThreshold", _interceptionThreshold);
 
+                _delay = Config.Get("Config", "Delay").ToSingle(0);
+                Config.Set("Config", "Delay", _delay);
+
                 MePb.CustomData = Config.ToString();
 
                 MatrixD referenceOrientation = SystemCoordinator.ReferenceWorldMatrix.GetOrientation();
@@ -240,6 +244,7 @@ namespace IngameScript
                 _gyros.ForEach(g => g.GyroBlock.GyroOverride = true);
                 _gyros.ForEach(g => g.GyroBlock.Enabled = false);
                 _payload.ForEach(w => w.IsArmed = false);
+                if (_delay > 0) _payload.ForEach(w => w.DetonationTime = _delay);
                 _remoteCtrl.DampenersOverride = false;
                 _remoteCtrl.SetAutoPilotEnabled(false);
                 _remoteCtrl.ControlThrusters = true;
@@ -383,7 +388,8 @@ namespace IngameScript
 
                             if (!detection.IsEmpty() && detection.EntityId == _target.EntityID)
                             {
-                                _payload.ForEach(w => w.Detonate());
+                                if (_delay > 0) _payload.ForEach(w => w.StartCountdown());
+                                else _payload.ForEach(w => w.Detonate());
                             }
                             break;
                         }
