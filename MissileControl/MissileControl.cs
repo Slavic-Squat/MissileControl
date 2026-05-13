@@ -61,6 +61,7 @@ namespace IngameScript
             private double _burnStartTime = -1;
             private IEnumerator<Vector3D> _launchBurnEnumerator;
             private float _proxySensorRange = 5;
+            private float _cameraArrayRange = 5000;
             private float _interceptionThreshold = 3;
             private float _delay = 0;
 
@@ -90,7 +91,7 @@ namespace IngameScript
                 {
                     if (block is IMyThrust)
                     {
-                        string name = block.Name.ToUpper();
+                        string name = block.CustomName.ToUpper();
                         if (name.Contains("THRUSTER GROUP 0"))
                         {
                             group0Thrusters.Add(new Thruster(block as IMyThrust));
@@ -202,7 +203,7 @@ namespace IngameScript
 
                 if (_selfGuiding)
                 {
-                    _cameraArray = new CameraArray("MISSILE", 5000);
+                    _cameraArray = new CameraArray("MISSILE", _cameraArrayRange);
                     _cameraArray.AddCamera(_proxySensor);
                 }
             }
@@ -253,6 +254,9 @@ namespace IngameScript
 
                 _selfGuiding = Config.Get("Config", "SelfGuiding").ToBoolean(false);
                 Config.Set("Config", "SelfGuiding", _selfGuiding);
+
+                _cameraArrayRange = Config.Get("Config", "CameraArrayRange").ToSingle(5000);
+                Config.Set("Config", "CameraArrayRange", _cameraArrayRange);
 
                 MePb.CustomData = Config.ToString();
 
