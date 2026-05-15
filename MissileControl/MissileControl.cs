@@ -1,4 +1,5 @@
-﻿using Sandbox.Game.EntityComponents;
+﻿using BulletXNA;
+using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
@@ -447,6 +448,7 @@ namespace IngameScript
                             }
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
+                            AddEvasion(1, vectorToAlign, ref accelVector);
 
                             if (timeToTarget > 0 && timeToTarget < _interceptionThreshold)
                             {
@@ -490,6 +492,7 @@ namespace IngameScript
                             }
                             vectorToAlign = rangeUnit;
                             ClampAndAlign(vectorToAlign, ref accelVector, out vectorToAlign);
+                            AddEvasion(1, vectorToAlign, ref accelVector);
 
                             var proxyDetection = _proxySensor.Raycast(_proxySensorRange);
                             if (!proxyDetection.IsEmpty() && proxyDetection.EntityId == _target.EntityID)
@@ -551,6 +554,36 @@ namespace IngameScript
                     if (value < 0) value = 0;
                     thrusterGroup.ThrustOverride = (float)value;
                 }
+            }
+
+            private void AddEvasion(float L, Vector3D currentVectorToAlign, ref Vector3D accelVector)
+            {
+                Vector3D currentRadialAccel = accelVector - Vector3D.Dot(accelVector, currentVectorToAlign) * currentVectorToAlign;
+                Vector3D currentAxialAccel = accelVector - currentRadialAccel;
+                double currentRadialAccelMag = currentRadialAccel.Length();
+                Vector3D currentRadialDir = currentRadialAccelMag == 0 ? Vector3D.Zero : currentRadialAccel / currentRadialAccelMag;
+                double radian = SystemTime * Math.PI / 2;
+                double magnitude = L * (Math.Sin(1.3 * radian) + Math.Cos(3.1 * radian) + Math.Sin(1.5 * radian) + Math.Cos(5.3 * radian)) / 4 * MathHelper.Lerp(0, _maxRadialAccel, currentRadialAccelMag / _maxRadialAccel);
+                Quaternion rotation = Quaternion.CreateFromAxisAngle(currentVectorToAlign, (float)(radian));
+                Vector3D evasion;
+                if (currentRadialAccelMag > 0)
+                {
+                    evasion = Vector3D.Transform(currentRadialDir, rotation) * magnitude;
+
+                }
+                else
+                {
+                    Vector3D arbitraryPerp = Vector3D.CalculatePerpendicularVector(currentVectorToAlign);
+                    evasion = Vector3D.Transform(arbitraryPerp, rotation) * magnitude;
+                }
+
+                Vector3D newRadialAccel = currentRadialAccel + evasion;
+                double newRadialAccelMag = newRadialAccel.Length();
+                if (newRadialAccelMag > _maxRadialAccel)
+                {
+                    newRadialAccel = newRadialAccel / newRadialAccelMag * _maxRadialAccel;
+                }
+                accelVector = currentAxialAccel + newRadialAccel;
             }
 
             private void ClampAndAlign(Vector3D currentVectorToAlign, ref Vector3D accelVector, out Vector3D newVectorToAlign)
