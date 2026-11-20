@@ -64,6 +64,8 @@ namespace IngameScript
                 CommandHandlerInst.RegisterCommand("SYNC_CLOCK", (args) => { if (args.Length > 0) SyncClock(args[0]); });
                 CommandHandlerInst.RegisterCommand("LAUNCH", (args) => { if (args.Length > 0) LaunchMissile(args[0]); });
                 CommandHandlerInst.RegisterCommand("ABORT", (args) => AbortMissile());
+
+                MissileControl.OnLocalTargetUpdate += TransmitTarget;
             }
 
             public void Run(double time)
@@ -86,7 +88,7 @@ namespace IngameScript
                     Transmit();
                 }
 
-                if (stage >= MissileStage.Flying && (!CommunicationHandlerInst.CanReach(_launcherAddress) || !MissileControl.Target.IsValid))
+                if (stage >= MissileStage.Flying && (!MissileControl.Target.IsValid || GlobalTime - MissileControl.Target.TimeRecorded > 10))
                 {
                     AbortMissile();
                 }
@@ -149,7 +151,8 @@ namespace IngameScript
                 EntityInfo target = MissileControl.Target;
                 MissileStage stage = MissileControl.GetStage();
                 MissilePayload payload = MissileControl.PayloadType;
-                MissileInfo missile = new MissileInfo(_launcherID, IGCS.Me, target.EntityID, stage, payload);
+                TrackStatus trackStatus = MissileControl.TrackStatus;
+                MissileInfo missile = new MissileInfo(_launcherID, IGCS.Me, target.EntityID, stage, payload, trackStatus);
                 MissileInfo missileLite = new MissileInfo(_launcherID);
                 EntityInfo entity = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missile);
                 EntityInfo entityLite = new EntityInfo(SelfID, ReferencePosition, ReferenceVelocity, GlobalTime, missileLite);
@@ -173,6 +176,20 @@ namespace IngameScript
                 {
                     ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
                     CommunicationHandlerInst.SendBroadcast(bytes, "ALL_MISSILES", false);
+                }
+            }
+
+            private void TransmitTarget(EntityInfo target)
+            {
+                int index = 0;
+                int sizeIndex = index++;
+                int bytesWritten = target.Serialize(_selfBuffer, index);
+                _selfBuffer[sizeIndex] = (byte)bytesWritten;
+                index += bytesWritten;
+                if (index > 1)
+                {
+                    ImmutableArray<byte> bytes = ImmutableArray.Create(_selfBuffer, 0, index);
+                    CommunicationHandlerInst.SendUnicast(bytes, _launcherAddress, "MY_MISSILE_TARGET", true);
                 }
             }
 

@@ -12,14 +12,14 @@
     <Compile Remove="DebugAPI.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Mal.Mdk2.PbAnalyzers" Version="2.1.16">
+    <PackageReference Include="Mal.Mdk2.PbAnalyzers" Version="2.2.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Mal.Mdk2.PbPackager" Version="2.2.3">
+    <PackageReference Include="Mal.Mdk2.PbPackager" Version="2.3.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Mal.Mdk2.References" Version="2.2.8" />
+    <PackageReference Include="Mal.Mdk2.References" Version="2.2.9" />
   </ItemGroup>
 </Project>

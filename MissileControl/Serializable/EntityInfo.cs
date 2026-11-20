@@ -26,7 +26,7 @@ namespace IngameScript
         {
             public long EntityID { get; private set; }
             public EntityType Type => MissileInfo.IsValid ? EntityType.Missile : EntityType.Target;
-            public Vector3D Position { get; private set;  }
+            public Vector3D Position { get; private set; }
             public Vector3D Velocity { get; private set; }
             public double TimeRecorded { get; private set; }
             public MissileInfo MissileInfo { get; private set; }
@@ -69,14 +69,7 @@ namespace IngameScript
                     return this;
                 }
                 MergeKinematics(other);
-
-                if (Type == EntityType.Target && other.Type == EntityType.Missile)
-                {
-                    if (other.MissileInfo.IsValid)
-                    {
-                        MissileInfo = other.MissileInfo;
-                    }
-                }
+                MissileInfo = MissileInfo.Merge(other.MissileInfo);
                 return this;
             }
 

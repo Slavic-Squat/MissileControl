@@ -29,17 +29,19 @@ namespace IngameScript
             public long Address { get; private set; }
             public MissileStage Stage { get; private set; }
             public MissilePayload Payload { get; private set; }
+            public TrackStatus TrackStatus { get; private set; }
             public long TargetID { get; private set; }
             public bool IsValid { get; private set; }
             public bool Lite { get; private set; }
 
-            public MissileInfo(long launcherID, long address, long targetID, MissileStage stage, MissilePayload payload)
+            public MissileInfo(long launcherID, long address, long targetID, MissileStage stage, MissilePayload payload, TrackStatus trackStatus)
             {
                 LauncherID = launcherID;
                 Address = address;
                 TargetID = targetID;
                 Stage = stage;
                 Payload = payload;
+                TrackStatus = trackStatus;
                 IsValid = true;
                 Lite = false;
             }
@@ -51,8 +53,30 @@ namespace IngameScript
                 TargetID = -1;
                 Stage = MissileStage.Unknown;
                 Payload = MissilePayload.Unknown;
+                TrackStatus = TrackStatus.Unknown;
                 IsValid = true;
                 Lite = true;
+            }
+
+            public MissileInfo Merge(MissileInfo other)
+            {
+                if (!IsValid && other.IsValid)
+                {
+                    return other;
+                }
+                if (IsValid && !other.IsValid)
+                {
+                    return this;
+                }
+                if (Lite && !other.Lite)
+                {
+                    return other;
+                }
+                if (!Lite && other.Lite)
+                {
+                    return this;
+                }
+                return other;
             }
 
             public int Serialize(byte[] bytes, int offset)
@@ -70,6 +94,7 @@ namespace IngameScript
                 index += 8;
                 bytes[index++] = (byte)Stage;
                 bytes[index++] = (byte)Payload;
+                bytes[index++] = (byte)TrackStatus;
                 MiscUtilities.WriteInt64(bytes, index, TargetID);
                 index += 8;
                 return index - offset;
@@ -92,7 +117,7 @@ namespace IngameScript
                     bytesRead = index - offset;
                     return new MissileInfo(launcherID);
                 }
-                if (bytes.Length - index < 18)
+                if (bytes.Length - index < 19)
                 {
                     return new MissileInfo();
                 }
@@ -102,10 +127,12 @@ namespace IngameScript
                 index += 1;
                 MissilePayload payload = (MissilePayload)bytes[index];
                 index += 1;
+                TrackStatus trackStatus = (TrackStatus)bytes[index];
+                index += 1;
                 long targetID = MiscUtilities.ReadInt64(bytes, index);
                 index += 8;
                 bytesRead = index - offset;
-                return new MissileInfo(launcherID, address, targetID, stage, payload);
+                return new MissileInfo(launcherID, address, targetID, stage, payload, trackStatus);
             }
         }
     }

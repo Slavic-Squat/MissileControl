@@ -56,6 +56,8 @@ namespace IngameScript
 
             private MissilePayload _payloadType;
             private MissileStage _stage = MissileStage.Building;
+            private TrackStatus _trackStatus = TrackStatus.Unknown;
+            private double _lastDetectionTime = -1;
             private List<Vector4D> _launchBurns = new List<Vector4D>();
             private int _burnIndex = 0;
             private double _burnStartTime = -1;
@@ -72,6 +74,8 @@ namespace IngameScript
             public MissileStage Stage => GetStage();
             public MissilePayload PayloadType => _payloadType;
             public EntityInfo Target => _target;
+            public TrackStatus TrackStatus => _trackStatus;
+            public event Action<EntityInfo> OnLocalTargetUpdate;
 
             public MissileControl()
             {
@@ -328,6 +332,7 @@ namespace IngameScript
                 {
                     _cameraArray.Enabled = false;
                     _cameraArray.RaycastEnabled = true;
+                    _trackStatus = TrackStatus.Idle;
                 }
 
                 _h2Tanks.ForEach(t => t.TankBlock.Stockpile = true);
@@ -420,12 +425,23 @@ namespace IngameScript
                             EntityInfo target = EstimateTargetKinematics(_target, _lastTarget); ;
                             if (_selfGuiding)
                             {
+                                if (_trackStatus <= TrackStatus.Idle)
+                                {
+                                    _trackStatus = TrackStatus.Aquiring;
+                                }
                                 var arrayDetection = _cameraArray.Raycast(target.Position, 10f);
                                 if (arrayDetection.EntityId == target.EntityID)
                                 {
+                                    _trackStatus = TrackStatus.Tracking;
                                     target = new EntityInfo(arrayDetection, globalTime);
                                     _lastTarget = _target;
                                     _target = target;
+                                    OnLocalTargetUpdate?.Invoke(target);
+                                    _lastDetectionTime = time;
+                                }
+                                if (_trackStatus == TrackStatus.Tracking && (time - _lastDetectionTime) > 5)
+                                {
+                                    _trackStatus = TrackStatus.Lost;
                                 }
                             }
 
@@ -463,12 +479,23 @@ namespace IngameScript
                             EntityInfo target = EstimateTargetKinematics(_target, _lastTarget); ;
                             if (_selfGuiding)
                             {
+                                if (_trackStatus <= TrackStatus.Idle)
+                                {
+                                    _trackStatus = TrackStatus.Aquiring;
+                                }
                                 var arrayDetection = _cameraArray.Raycast(target.Position, 10f);
                                 if (!arrayDetection.IsEmpty() && arrayDetection.EntityId == target.EntityID)
                                 {
+                                    _trackStatus = TrackStatus.Tracking;
                                     target = new EntityInfo(arrayDetection, globalTime);
                                     _lastTarget = _target;
                                     _target = target;
+                                    OnLocalTargetUpdate?.Invoke(target);
+                                    _lastDetectionTime = time;
+                                }
+                                if (_trackStatus == TrackStatus.Tracking && (time - _lastDetectionTime) > 5)
+                                {
+                                    _trackStatus = TrackStatus.Lost;
                                 }
                             }
 

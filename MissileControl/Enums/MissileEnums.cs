@@ -30,6 +30,11 @@ namespace IngameScript
         {
             Unknown, Building, Fueling, Idle, Launching, Flying, Interception
         }
+
+        public enum TrackStatus : byte
+        {
+            Unknown, Idle, Aquiring, Tracking, Lost
+        }
         public static class MissileEnumHelper
         {
 
@@ -55,6 +60,19 @@ namespace IngameScript
                     case MissilePayload.Kinectic: return "KINECTIC";
                     case MissilePayload.ClusterHE: return "CLUSTER-HE";
                     case MissilePayload.ClusterNuclear: return "CLUSTER-NUKE";
+                    default: return "N/A";
+                }
+            }
+
+            public static string GetTrackStatusStr(TrackStatus status)
+            {
+                switch (status)
+                {
+                    case TrackStatus.Unknown: return "N/A";
+                    case TrackStatus.Idle: return "IDLE";
+                    case TrackStatus.Aquiring: return "AQUIRING";
+                    case TrackStatus.Tracking: return "TRACKING";
+                    case TrackStatus.Lost: return "LOST";
                     default: return "N/A";
                 }
             }
