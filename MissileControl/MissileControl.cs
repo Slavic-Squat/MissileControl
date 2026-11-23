@@ -589,23 +589,26 @@ namespace IngameScript
                     accelMag = _maxAccel;
                 }                
 
-                double minForwardAccel;
-                double maxForwardAccel;
+                double currentForwardAccel = Vector3D.Dot(accelVector, currentVectorToAlign);
+                double currentRadialAccel = Math.Sqrt(accelMag * accelMag - currentForwardAccel * currentForwardAccel);
 
-                if (accelMag <= _maxRadialAccel)
+                double targetForwardAccel;
+                double targetRadialAccel;
+
+                if (currentRadialAccel > _maxRadialAccel)
                 {
-                    minForwardAccel = 0;
-                    maxForwardAccel = _maxForwardAccel;
+                    targetRadialAccel = _maxRadialAccel;
+                    targetForwardAccel = Math.Sqrt(accelMag * accelMag - targetRadialAccel * targetRadialAccel);
+                }
+                else if (Math.Abs(currentForwardAccel) > _maxForwardAccel)
+                {
+                    targetForwardAccel = _maxForwardAccel;
+                }
+                else if (currentForwardAccel < 0)
+                {
+                    targetForwardAccel = -currentForwardAccel;
                 }
                 else
-                {
-                    minForwardAccel = Math.Sqrt(accelMag * accelMag - _maxRadialAccel * _maxRadialAccel);
-                    maxForwardAccel = _maxForwardAccel;
-                }
-
-                double currentForwardAccel = Vector3D.Dot(accelVector, currentVectorToAlign);
-
-                if (currentForwardAccel >= minForwardAccel && currentForwardAccel <= maxForwardAccel)
                 {
                     newVectorToAlign = currentVectorToAlign;
                     return;
@@ -616,20 +619,14 @@ namespace IngameScript
                 Vector3D rotationAxis;
                 double epsilon = 1e-6;
 
-                if (dot <= -1 + epsilon)
+                if (dot <= -1 + epsilon || dot >= 1 - epsilon)
                 {
                     rotationAxis = Vector3D.CalculatePerpendicularVector(currentVectorToAlign);
-                }
-                else if (dot >= 1 - epsilon)
-                {
-                    rotationAxis = Vector3D.Zero;
                 }
                 else
                 {
                     rotationAxis = Vector3D.Cross(currentVectorToAlign, accelDir).Normalized();
                 }
-
-                double targetForwardAccel = currentForwardAccel < minForwardAccel ? minForwardAccel : maxForwardAccel;
 
                 double currentAccelAngle = accelMag == 0 ? 0 : Math.Acos(MathHelper.Clamp(currentForwardAccel / accelMag, -1, 1));
                 double targetAccelAngle = accelMag == 0 ? 0 : Math.Acos(MathHelper.Clamp(targetForwardAccel / accelMag, -1, 1));
