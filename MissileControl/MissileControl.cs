@@ -630,7 +630,7 @@ namespace IngameScript
 
                 double currentAccelAngle = accelMag == 0 ? 0 : Math.Acos(MathHelper.Clamp(currentForwardAccel / accelMag, -1, 1));
                 double targetAccelAngle = accelMag == 0 ? 0 : Math.Acos(MathHelper.Clamp(targetForwardAccel / accelMag, -1, 1));
-                double rotationAngle = -1 * (targetAccelAngle - currentAccelAngle);
+                double rotationAngle = Math.Abs(targetAccelAngle - currentAccelAngle);
 
                 Quaternion quaternion = Quaternion.CreateFromAxisAngle(rotationAxis, (float)rotationAngle);
                 newVectorToAlign = Vector3D.Transform(currentVectorToAlign, quaternion);
