@@ -398,17 +398,6 @@ namespace IngameScript
                                 MePb.CubeGrid.CustomName = "MISSILE";
                             }
 
-                            double accelMag = accelVector.Length();
-                            Vector3D accelDir = accelMag == 0 ? Vector3D.Zero : accelVector / accelMag;
-
-                            Vector3D velToMaintain = _velAtLaunch - Vector3D.Dot(_velAtLaunch, accelDir) * accelDir;
-                            double freeSpeed = Math.Sqrt(_maxSpeed * _maxSpeed - velToMaintain.LengthSquared());
-
-                            if (freeSpeed < 0)
-                            {
-                                accelVector = Vector3D.Zero;
-                            }
-
                             if (gravVector.LengthSquared() > 0)
                             {
                                 //Vector3D gravComp = -gravVector - Vector3D.Dot(-gravVector, accelDir) * accelDir;
